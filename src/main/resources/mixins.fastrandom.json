@@ -1,0 +1,16 @@
+{
+  "package": "com.sing.astatine.mixin.fastrandom",
+  "required": false,
+  "refmap": "mixins.astatine.refmap.json",
+  "target": "@env(DEFAULT)",
+  "minVersion": "0.8.5",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+    "MixinCommonClint",
+    "MixinExplosion"
+  ],
+  "server": [],
+  "client": [
+    "MixinClientClint"
+  ]
+}
