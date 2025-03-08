@@ -1,4 +1,5 @@
 package com.sing.astatine.core;
+
 import com.sing.astatine.Configuration;
 import com.sing.astatine.utils.Utils;
 import it.unimi.dsi.fastutil.objects.ObjectArraySet;
@@ -15,10 +16,10 @@ import java.util.concurrent.ThreadLocalRandom;
 @IFMLLoadingPlugin.MCVersion("1.12.2")
 @IFMLLoadingPlugin.Name("astatine")
 @IFMLLoadingPlugin.SortingIndex(2333)
-@IFMLLoadingPlugin.TransformerExclusions({"com.sing.astatine.core","com.sing.astatine.Configuration"})
+@IFMLLoadingPlugin.TransformerExclusions({"com.sing.astatine.core", "com.sing.astatine.Configuration"})
 public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
 
-    private static final Set<String> FASTRANDOM_LIST =new ObjectArraySet<>(new String[]{
+    private static final Set<String> FASTRANDOM_LIST = new ObjectArraySet<>(new String[]{
             "net.minecraft.client.gui.FontRenderer",
             "net.minecraft.client.renderer.EntityRenderer",
             "net.minecraft.client.audio.MusicTicker",
@@ -31,6 +32,10 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
             "net.minecraft.entity.Entity",
             "net.minecraft.server.MinecraftServer",
             "net.minecraft.entity.passive.EntitySquid"
+    });
+    private static final Set<String> NEW_GUI_REPLACE = new ObjectArraySet<>(new String[]{
+            "net.minecraft.client.gui.GuiMainMenu",
+            "net.minecraft.client.gui.GuiOptions"
     });
 
     @Override
@@ -57,7 +62,6 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
     public String getAccessTransformerClass() {
         return null;
     }
-
     @Override
     public List<String> getMixinConfigs() {
         Configuration.init();
@@ -65,19 +69,14 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
         if (Configuration.languageSelector) mixins.add("mixins.multilang.json");
         if (Configuration.fastLang) mixins.add("mixins.fastlang.json");
         if (Configuration.fastRandom) mixins.add("mixins.fastrandom.json");
-        if (Configuration.starCount !=-1) mixins.add("mixins.faststar.json");
-        if(Configuration.starShrinkingFreq!=0&&Configuration.starShrinkingAmplitude!=0)mixins.add("mixins.starshrinking.json");
+        if (Configuration.starGenMixins) mixins.add("mixins.faststar.json");
+        if (Configuration.starBrightnessMixins) mixins.add("mixins.starshrinking.json");
+        if (Configuration.forceWeatherParticleUseConstLight) mixins.add("mixins.weather.json");
         return mixins;
     }
-    private static final Set<String> NEW_GUI_REPLACE=new ObjectArraySet<>(new String[]{
-            "net.minecraft.client.gui.GuiMainMenu",
-            "net.minecraft.client.gui.GuiOptions"
-    });
     public static class ASMTransformer implements IClassTransformer {
         @Override
         public byte[] transform(String name, String transformedName, byte[] basicClass) {
-            if(transformedName.startsWith("org.objectweb.asm"))
-                throw new RuntimeException("???");
             switch (transformedName) {
                 case "net.minecraft.client.resources.Locale": {
                     if (Configuration.forceAsciiFont) {
@@ -93,8 +92,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                     final MethodASM method = asm.methodByName("func_71043_e", "canEat");
                     if (Configuration.alwaysEatable) {
                         method.breaks(true);
-                    }
-                    else {
+                    } else {
                         InstructionList list = new InstructionList();
                         list.invokeVirtualThis(asm.name(), CoreModCore.mayDeobfuscated("func_184812_l_", "isCreative"), "()Z");
                         LabelNode node = list.jumpIf0();
@@ -104,31 +102,31 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                     }
                     return asm.toBytes();
                 }
-                case "net.minecraft.item.ItemFood":{
-                    if(Configuration.creativeEating){
+                case "net.minecraft.item.ItemFood": {
+                    if (Configuration.creativeEating) {
                         final ClassASM asm = ClassASM.get(basicClass);
-                        final MethodASM method = asm.methodByName("func_77654_b","onItemUseFinish");
+                        final MethodASM method = asm.methodByName("func_77654_b", "onItemUseFinish");
                         final InstructionList instructions = method.instructions();
                         final int isCreative = method.local("isCreative", "I", instructions.find(INodeMatcher.labels()), instructions.findLast(INodeMatcher.labels()));
-                        InstructionList start=new InstructionList();
+                        InstructionList start = new InstructionList();
                         start.constant(false);
                         start.storeI(isCreative);
                         instructions.insertAfterHead(start);
-                        InstructionList list=new InstructionList();
+                        InstructionList list = new InstructionList();
                         list.dupe();
-                        list.invokeVirtual("net/minecraft/entity/player/EntityPlayer", CoreModCore.mayDeobfuscated("func_184812_l_", "isCreative"),"()Z");
+                        list.invokeVirtual("net/minecraft/entity/player/EntityPlayer", CoreModCore.mayDeobfuscated("func_184812_l_", "isCreative"), "()Z");
                         list.storeI(isCreative);
-                        InstructionList shrinkCheck=new InstructionList();
+                        InstructionList shrinkCheck = new InstructionList();
                         shrinkCheck.loadI(isCreative);
-                        shrinkCheck.jumpIfNot0(instructions.findLastNth(INodeMatcher.labels(),1));
-                        instructions.insertBefore(instructions.find(node -> node.getOpcode() == Opcodes.ASTORE && ((VarInsnNode) node).var == 4),list);
-                        instructions.insert(instructions.findLastNth(INodeMatcher.labels(),2),shrinkCheck);
+                        shrinkCheck.jumpIfNot0(instructions.findLastNth(INodeMatcher.labels(), 1));
+                        instructions.insertBefore(instructions.find(node -> node.getOpcode() == Opcodes.ASTORE && ((VarInsnNode) node).var == 4), list);
+                        instructions.insert(instructions.findLastNth(INodeMatcher.labels(), 2), shrinkCheck);
                         return asm.toBytes();
                     }
                     break;
                 }
                 case "net.minecraft.client.gui.GuiLanguage$List": {
-                    if (!Configuration.fastLang ||Configuration.languageSelector) {
+                    if (!Configuration.fastLang || Configuration.languageSelector) {
                         break;
                     }
                     final ClassASM asm = ClassASM.get(basicClass);
@@ -141,8 +139,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                             if (methodNode.owner.equals("net/minecraftforge/fml/client/FMLClientHandler"))
                                 instructions.remove(methodNode);
                                 // Replace Minecraft resource reload(saveOptions()V)
-                            else
-                                if (methodNode.getOpcode() == Opcodes.INVOKEVIRTUAL && methodNode.desc.equals("()V")) {
+                            else if (methodNode.getOpcode() == Opcodes.INVOKEVIRTUAL && methodNode.desc.equals("()V")) {
                                 final InstructionList list = new InstructionList();
                                 list.loadThis();
                                 list.field("net/minecraft/client/gui/GuiLanguage$List", "this$0", "Lnet/minecraft/client/gui/GuiLanguage;");
@@ -152,7 +149,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                                 list.invokeVirtual("net/minecraft/client/resources/LanguageManager", CoreModCore.mayDeobfuscated("func_110549_a", "onResourceManagerReload"), "(Lnet/minecraft/client/resources/IResourceManager;)V");
                                 String ofClassName = null;
                                 if (Utils.hasClass("net.optifine.Lang")) {
-                                    ofClassName = "net.optifine.Lang";
+                                    ofClassName = "net/optifine/Lang";
                                 } else if (Utils.hasClass("Lang")) {
                                     ofClassName = "Lang";
                                 }
@@ -169,45 +166,86 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                     }
                     return asm.toBytes();
                 }
+                case "net.minecraft.client.multiplayer.WorldClient":
+                case "net.minecraft.world.WorldServer":{
+                    if (Configuration.worldTimeFactor<=1) {
+                        break;
+                    }
+                    final ClassASM asm = ClassASM.get(basicClass);
+                    final String counter = asm.field("astatine$worldTimeFactorCounter", "I", 0);
+                    final MethodASM method = asm.methodByName("func_72835_b", "tick");
+                    final InstructionList instructions = method.instructions();
+                    final JumpInsnNode node = (JumpInsnNode) instructions.findLast(INodeMatcher.ldc("doDaylightCycle")).getNext().getNext();
+                    final InstructionList list = new InstructionList();
+                    list.loadThis();
+                    list.field(asm.name(),counter,"I");
+                    list.constant(1);
+                    list.add(Opcodes.IADD);
+                    list.dupe();
+                    list.loadThis();
+                    list.swap();
+                    list.setField(asm.name(),counter,"I");
+                    list.staticVar("com/sing/astatine/Configuration","worldTimeFactor","I");
+                    list.doJump(Opcodes.IF_ICMPLT, node.label);
+                    list.loadThis();
+                    list.constant(0);
+                    list.setField(asm.name(),counter,"I");
+                    instructions.insert(node,list);
+                    return asm.toBytes();
+                }
+                case "net.minecraftforge.client.GuiIngameForge":{
+                    if (!Configuration.showGameTime) {
+                        break;
+                    }
+                    final ClassASM asm = ClassASM.get(basicClass);
+                    final MethodASM method = asm.methodByName("func_175180_a", "renderGameOverlay");
+                    final InstructionList instructions = method.instructions();
+                    final InstructionList list = new InstructionList();
+                    list.getFieldThis(asm.name(),CoreModCore.mayDeobfuscated("field_73839_d","mc"),"Lnet/minecraft/client/Minecraft;");
+                    list.invokeStatic("com/sing/astatine/utils/Utils","drawGameTime","(Lnet/minecraft/client/Minecraft;)V");
+                    instructions.insert(instructions.find(INodeMatcher.invokes("renderFPSGraph")),list);
+
+                    return asm.toBytes();
+                }
             }
-            if(Configuration.fastRandom&&FASTRANDOM_LIST.contains(transformedName)){
+            if (Configuration.fastRandom && FASTRANDOM_LIST.contains(transformedName)) {
                 final ClassASM asm = ClassASM.get(basicClass);
                 final MethodASM method = asm.constructor();
                 final InstructionList instructions = method.instructions();
                 for (AbstractInsnNode node : instructions) {
-                    if(node.getOpcode()==Opcodes.INVOKEVIRTUAL&&
-                            ((MethodInsnNode)node).name.equals("setSeed")
-                    ){
+                    if (node.getOpcode() == Opcodes.INVOKEVIRTUAL &&
+                            ((MethodInsnNode) node).name.equals("setSeed")
+                    ) {
                         instructions.insert(node, InstructionList.of(new InsnNode(Opcodes.POP2)));
                         instructions.remove(node);
-                    } else if(node.getOpcode()==Opcodes.NEW&&((TypeInsnNode) node).desc.equals("java/util/Random")){
-                        InstructionList list=new InstructionList();
+                    } else if (node.getOpcode() == Opcodes.NEW && ((TypeInsnNode) node).desc.equals("java/util/Random")) {
+                        InstructionList list = new InstructionList();
                         ThreadLocalRandom.current();
-                        list.invokeStatic("java/util/concurrent/ThreadLocalRandom","current","()Ljava/util/concurrent/ThreadLocalRandom;");
-                        instructions.insertBefore(node,list);
+                        list.invokeStatic("java/util/concurrent/ThreadLocalRandom", "current", "()Ljava/util/concurrent/ThreadLocalRandom;");
+                        instructions.insertBefore(node, list);
                         //noinspection DataFlowIssue
-                        while(!(node.getOpcode()==Opcodes.INVOKESPECIAL&&((MethodInsnNode)node).owner.equals("java/util/Random"))){
+                        while (!(node.getOpcode() == Opcodes.INVOKESPECIAL && ((MethodInsnNode) node).owner.equals("java/util/Random"))) {
                             final AbstractInsnNode next = node.getNext();
                             instructions.remove(node);
-                            node=next;
+                            node = next;
                         }
                         instructions.remove(node);
                     }
                 }
                 return asm.toBytes();
-            }else if(Configuration.languageSelector&&NEW_GUI_REPLACE.contains(transformedName)){
+            } else if (Configuration.languageSelector && NEW_GUI_REPLACE.contains(transformedName)) {
                 final ClassASM asm = ClassASM.get(basicClass);
-                final MethodASM method = asm.methodByName("func_146284_a","actionPerformed");
+                final MethodASM method = asm.methodByName("func_146284_a", "actionPerformed");
                 final InstructionList instructions = method.instructions();
                 for (AbstractInsnNode instruction : instructions) {
-                    if(instruction instanceof TypeInsnNode){
+                    if (instruction instanceof TypeInsnNode) {
                         final TypeInsnNode insn = (TypeInsnNode) instruction;
-                        if(insn.desc.equals("net/minecraft/client/gui/GuiLanguage"))
-                            insn.desc="com/sing/astatine/client/gui/multilang/GuiScreenLanguages";
-                    }else if(instruction instanceof MethodInsnNode){
+                        if (insn.desc.equals("net/minecraft/client/gui/GuiLanguage"))
+                            insn.desc = "com/sing/astatine/client/gui/multilang/GuiScreenLanguages";
+                    } else if (instruction instanceof MethodInsnNode) {
                         final MethodInsnNode insn = (MethodInsnNode) instruction;
-                        if(insn.owner.equals("net/minecraft/client/gui/GuiLanguage"))
-                            insn.owner="com/sing/astatine/client/gui/multilang/GuiScreenLanguages";
+                        if (insn.owner.equals("net/minecraft/client/gui/GuiLanguage"))
+                            insn.owner = "com/sing/astatine/client/gui/multilang/GuiScreenLanguages";
                     }
                 }
                 return asm.toBytes();

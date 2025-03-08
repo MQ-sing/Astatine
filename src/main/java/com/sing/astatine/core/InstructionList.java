@@ -64,6 +64,9 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     public void loadThis() {
         list.add(new VarInsnNode(Opcodes.ALOAD, 0));
     }
+    public void swap(){
+        list.add(new InsnNode(Opcodes.SWAP));
+    }
 
     public void storeA(int index){
         list.add(new VarInsnNode(Opcodes.ASTORE, index));
@@ -154,6 +157,9 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     public void jumpIfNonNull(LabelNode label){
         list.add(new JumpInsnNode(Opcodes.IFNONNULL,label));
     }
+    public void doJump(int opcode,LabelNode label){
+        list.add(new JumpInsnNode(opcode,label));
+    }
     public LabelNode jumpIf0(){
         LabelNode label=new LabelNode();
         list.add(new JumpInsnNode(Opcodes.IFEQ,label));
@@ -220,11 +226,17 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     public void staticVar(String className,String name,String description){
         list.add(new FieldInsnNode(Opcodes.GETSTATIC, className, name, description));
     }
+    public void setStaticVar(String className,String name,String description){
+        list.add(new FieldInsnNode(Opcodes.PUTSTATIC, className, name, description));
+    }
     public void configFlag(String name){
         list.add(new FieldInsnNode(Opcodes.GETSTATIC, "com/sing/astatine/Configuration", name, "Z"));
     }
     public void field(String owner,String name,String desc){
         list.add(new FieldInsnNode(Opcodes.GETFIELD,owner,name,desc));
+    }
+    public void setField(String owner,String name,String desc){
+        list.add(new FieldInsnNode(Opcodes.PUTFIELD,owner,name,desc));
     }
     public void pop(){
         list.add(new InsnNode(Opcodes.POP));
@@ -263,7 +275,9 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
         list.add(new InsnNode(Opcodes.DUP));
     }
 
-
+    public void add(int opcode){
+        list.add(new InsnNode(opcode));
+    }
     @Override
     public int size() {
         return list.size();
@@ -441,10 +455,14 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     public void insertAfterHead(InstructionList instructionList){
         list.insert(find(INodeMatcher.labels()),instructionList.list);
     }
-    @SuppressWarnings("unchecked")
     public <T extends AbstractInsnNode> T find(INodeMatcher<T> matcher){
-        for (AbstractInsnNode node : this) {
-            if(matcher.match(node))return (T)node;
+        return find(matcher,0);
+    }
+    @SuppressWarnings("unchecked")
+    public <T extends AbstractInsnNode> T find(INodeMatcher<T> matcher,int start){
+        for (int i = start; i < this.size(); i++) {
+            AbstractInsnNode node = this.get(i);
+            if (matcher.match(node)) return (T) node;
         }
         return null;
     }

@@ -20,7 +20,7 @@ public class MixinRenderGlobal {
     @Overwrite
     private void renderStars(BufferBuilder bufferBuilderIn)
     {
-        miscFixes$random.setSeed(Configuration.starSeed* 0xC418L,Configuration.starSeed* 0xBEEFL >> 2);
+        miscFixes$random.setSeed(Configuration.starSeed);
         bufferBuilderIn.begin(7, DefaultVertexFormats.POSITION);
 
         for (int i = 0; i < Configuration.starCount; ++i)

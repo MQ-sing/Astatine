@@ -1,6 +1,7 @@
 package com.sing.astatine.utils;
 
-public class XORShiftRandom {
+import java.util.Random;
+public class XORShiftRandom extends Random {
     long stateA;
     long stateB;
     private long xorshift128plus() {
@@ -11,18 +12,12 @@ public class XORShiftRandom {
         stateB=s1^s0^(s1>>17)^(s0>>26);
         return stateB+s0;
     }
-    public void setSeed(long seedA,long seedB){
-        stateA = seedA;
-        stateB=seedB;
+    @Override
+    public void setSeed(long seed){
+        stateB=seed^0xBEEFC418C31AE1CDL;
+        stateA=~stateB+0xCC;
     }
-
-    public double nextDouble() {
-        long value = xorshift128plus();
-        return ((double) (value & 0x7FFFFFFFFFFFFFFFL)) / 0x7FFFFFFFFFFFFFFFL;
-    }
-
-    public float nextFloat() {
-        long value = xorshift128plus();
-        return ((float) (value & 0x7FFFFFFFFFFFFFFFL)) / 0x7FFFFFFFFFFFFFFFL;
+    protected int next(int bits) {
+        return (int)(xorshift128plus() >>> (64-bits));
     }
 }

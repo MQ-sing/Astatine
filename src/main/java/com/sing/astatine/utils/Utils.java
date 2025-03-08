@@ -1,7 +1,11 @@
 package com.sing.astatine.utils;
 
+import com.sing.astatine.Configuration;
+import net.minecraft.client.Minecraft;
+
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class Utils {
 
@@ -71,5 +75,18 @@ public class Utils {
         //noinspection ResultOfMethodCallIgnored
         file.getParentFile().mkdirs();
         return file.createNewFile();
+    }
+    public static double random(){
+        return ThreadLocalRandom.current().nextDouble();
+    }
+    public static void drawGameTime(Minecraft mc){
+        if(mc.world==null||mc.gameSettings.showDebugInfo)return;
+        final long time = mc.world.getWorldTime()+6000;
+        long totalMinutes = (time / 1000) * 60;
+        totalMinutes += (time % 1000) * 60 / 1000;
+        int hours = (int) (totalMinutes / 60) % 24;
+        int minutes = (int) (totalMinutes % 60);
+        String text=String.format("%02d:%02d", hours, minutes);
+        mc.fontRenderer.drawString(text,Configuration.timeShowerXOffset,Configuration.timeShowerYOffset, 0xFFFFFF);
     }
 }

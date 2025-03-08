@@ -42,55 +42,86 @@ public class Configuration {
             "with ThreadLocalRandom in specific classes for better thread performance.",
             "Behaves strangely most of the time."})
     public static boolean fastRandom = false;
-
     @ConfigComment({
-            "Controls the number of stars rendered in the sky:",
-            "-1: Vanilla behavior (default 1500 stars)",
+            "Set if mixin on generating stars"
+    })
+    public static boolean starGenMixins=true;
+    @ConfigComment({
+            "Controls the number of stars rendered in the sky(default 1500 stars):",
             "=0: No stars rendered",
             ">0: Custom star count",
             "Note: Uses a faster RNG during star generation"
     })
-    public static int starCount = -1;
+    public static int starCount = 3000;
     @ConfigComment({
-            "Controls the size of stars,required starCount not to be -1.",
+            "Controls the size of stars,required starGenMixins",
             "Vanilla: 0.15"
     })
-    public static double starSizeBase = 0.15;
+    public static double starSizeBase = 0.1;
 
     @ConfigComment({
-            "Controls the difference of size of stars,required starCount not to be -1.",
+            "Controls the difference of size of stars,required starGenMixins",
             "Vanilla: 0.1"
     })
-    public static double starSizeDiff = 0.1;
+    public static double starSizeDiff = 0.3;
     @ConfigComment({
             "Controls the random seed to use while generating stars.One seed,one unique star layout.",
             "Set to 0 to generate a new seed everytime you enter the game.",
-            "Requires starCount not to be -1."
+            "Requires starGenMixins."
     })
     public static long starSeed = 23333;
-
+    @ConfigComment({
+            "Set if mixin on generating stars"
+    })
+    public static boolean starBrightnessMixins=true;
     @ConfigComment({
             "Let the stars shrinking using a sin function,This controls the shrinking frequency.",
             "Use it with starShrinkingAmplitude!",
-            "A bug(maybe?) causes this feature invalid in Vanilla."
+            "Requires starBrightnessMixins"
     })
-    public static float starShrinkingFreq = 0;
+    public static float starShrinkingFreq = 0.2F;
     @ConfigComment({
             "Let the stars shrinking using a sin function,This controls the shrinking amplitude.",
-            "Use it with starShrinkingFreq!"
+            "Use it with starShrinkingFreq!",
+            "Requires starBrightnessMixins"
     })
-    public static float starShrinkingAmplitude = 0;
+    public static float starShrinkingAmplitude = 0.1F;
     @ConfigComment({
             "Controls the basic value of stars' brightness.",
+            "Requires starBrightnessMixins",
             "Vanilla: 0.5"
     })
     public static float starBrightness=0.5F;
-
+    @ConfigComment({
+            "Set the factor the time affects the brightness of stars.",
+            "for example,stars will invisible in day because their brightness is 0.",
+            "Requires starBrightnessMixins",
+            "Default: 1"
+    })
+    public static float starTimeAffectFactor=1;
     @ConfigComment("Allows players to eat food anytime, including in Creative mode")
     public static boolean alwaysEatable = false;
 
     @ConfigComment("Enables Creative mode players to eat food without consuming the item")
     public static boolean creativeEating = true;
+
+    @ConfigComment("")
+    public static int worldTimeFactor=1;
+    @ConfigComment("Show a time in the game at left-top location")
+    public static boolean showGameTime=false;
+    @ConfigComment("The x offset to add to the location of time shower.")
+    public static int timeShowerXOffset=2;
+    @ConfigComment("The y offset to add to the location of time shower.")
+    public static int timeShowerYOffset=4;
+
+    @Hidden
+    @ConfigComment({
+            "Force not to calculate the world brightness while rendering weather particles.",
+    "That could avoid reading block information.",
+    "-1 for Vanilla behavior"})
+    public static boolean forceWeatherParticleUseConstLight =false;
+
+
 
     public static void init() {
         final File configFile = new File(Launch.minecraftHome, "config/astatine.properties");
@@ -102,6 +133,7 @@ public class Configuration {
                 props.load(Files.newReader(configFile, StandardCharsets.UTF_8));
             }
             for (Field field : Configuration.class.getDeclaredFields()) {
+                if(field.getAnnotation(Hidden.class)!=null)continue;
                 String key = field.getName();
                 String valueStr = props.getProperty(key);
                 Object fieldValue;
@@ -152,4 +184,7 @@ public class Configuration {
     private @interface ConfigComment {
         @Nls String[] value();
     }
+    @Target(ElementType.FIELD)
+    @Retention(RetentionPolicy.RUNTIME)
+    private @interface Hidden { }
 }
