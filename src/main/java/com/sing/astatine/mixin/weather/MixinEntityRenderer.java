@@ -39,6 +39,7 @@ public abstract class MixinEntityRenderer {
     private float[] rainXCoords = new float[1024];
     @Shadow
     private float[] rainYCoords = new float[1024];
+    @Mutable
     @Final
     @Shadow
     private Random random;
