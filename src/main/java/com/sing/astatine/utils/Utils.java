@@ -79,6 +79,7 @@ public class Utils {
     public static double random(){
         return ThreadLocalRandom.current().nextDouble();
     }
+    @SuppressWarnings("unused")
     public static void drawGameTime(Minecraft mc){
         if(mc.world==null||mc.gameSettings.showDebugInfo)return;
         final long time = mc.world.getWorldTime()+6000;
@@ -87,6 +88,6 @@ public class Utils {
         int hours = (int) (totalMinutes / 60) % 24;
         int minutes = (int) (totalMinutes % 60);
         String text=String.format("%02d:%02d", hours, minutes);
-        mc.fontRenderer.drawString(text,Configuration.timeShowerXOffset,Configuration.timeShowerYOffset, 0xFFFFFF);
+        mc.fontRenderer.drawString(text,Configuration.WorldTime.timeDisplayXOffset,Configuration.WorldTime.timeDisplayYOffset, 0xFFFFFF);
     }
 }

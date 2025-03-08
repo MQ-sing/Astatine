@@ -15,7 +15,7 @@ public abstract class MixinWorld {
     @Shadow public abstract float getCelestialAngle(float partialTicks);
 
     @Unique
-    private static final float astatine$FREQ =(float)(Math.PI * Configuration.starShrinkingFreq);
+    private static final float astatine$FREQ =(float)(Math.PI * Configuration.StarTwinkling.frequency);
     @Unique
     private float astatine$totalTime;
     /**
@@ -28,8 +28,8 @@ public abstract class MixinWorld {
     {
         astatine$totalTime+=partialTicks/16;
         float angle = MathHelper.clamp(1.0F - (MathHelper.cos(getCelestialAngle(partialTicks) * ((float)Math.PI * 2F)) * 4.0F + 0.25F),0,1);
-        if(Configuration.starTimeAffectFactor!=0&&angle==0)return 0;
-        float f1 =MathHelper.sin(astatine$totalTime * astatine$FREQ) * Configuration.starShrinkingAmplitude;
-        return (Configuration.starBrightness+f1)*(1+(angle*angle)*Configuration.starTimeAffectFactor)/(1+Configuration.starTimeAffectFactor);
+        if(Configuration.StarTwinkling.timeAttenuation !=0&&angle==0)return 0;
+        float f1 =MathHelper.sin(astatine$totalTime * astatine$FREQ) * Configuration.StarTwinkling.amplitude;
+        return (Configuration.StarTwinkling.base +f1)*(1+(angle*angle)*Configuration.StarTwinkling.timeAttenuation)/(1+Configuration.StarTwinkling.timeAttenuation);
     }
 }

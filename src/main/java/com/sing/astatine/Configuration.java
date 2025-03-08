@@ -1,190 +1,134 @@
 package com.sing.astatine;
 
-import com.google.common.base.Preconditions;
-import com.google.common.io.Files;
-import com.sing.astatine.utils.Utils;
-import net.minecraft.launchwrapper.Launch;
-import org.jetbrains.annotations.Nls;
-
-import java.io.File;
-import java.lang.annotation.*;
-import java.lang.reflect.Field;
-import java.nio.charset.StandardCharsets;
-import java.util.Properties;
-
+import com.sing.astatine.utils.config.*;
 public class Configuration {
-    // Used in CoreMod.
-    @ConfigComment("Forces ASCII font rendering for all texts, " +
-            "fixing a bug where Minecraft always uses Unicode rendering " +
-            "if text contains any Unicode characters (ignoring language settings).")
-    public static boolean forceAsciiFont = true;
+    @Group("lang")
+    public static class Lang {
+        @ConfigComment("Forces ASCII font rendering for all text elements, " +
+                "fixing incorrect Unicode font rendering when non-ASCII characters are present")
+        public static boolean forceAsciiFont = true;
 
-    @ConfigComment({
-            "Optimizes language file loading by:",
-            "- Skipping redundant resource reloads when switching languages",
-            "- Replacing regex-based .lang file parsing with a manual parser"
-    })
-    public static boolean fastLang = true;
-    @ConfigComment({
-            "Disable a forge's extension for .lang files,",
-            "It will cause the file be read over twice(1 for Forge's,1 for Vanilla),and worse performance when using fastLang",
-            "Close it when you find some issues on translation keys",
-            "Requires fastLang to be opened."
-    })
-    public static boolean noForgeLangExtension = false;
-
-
-    @ConfigComment("[Experimental] Enables a new language selector UI. " +
-            "Warning: May cause instability!")
-    public static boolean languageSelector = false;
-
-    @ConfigComment({"[Experimental] Replaces Vanilla's java.util.Random " +
-            "with ThreadLocalRandom in specific classes for better thread performance.",
-            "Behaves strangely most of the time."})
-    public static boolean fastRandom = false;
-    @ConfigComment({
-            "Set if mixin on generating stars"
-    })
-    public static boolean starGenMixins=true;
-    @ConfigComment({
-            "Controls the number of stars rendered in the sky(default 1500 stars):",
-            "=0: No stars rendered",
-            ">0: Custom star count",
-            "Note: Uses a faster RNG during star generation"
-    })
-    public static int starCount = 3000;
-    @ConfigComment({
-            "Controls the size of stars,required starGenMixins",
-            "Vanilla: 0.15"
-    })
-    public static double starSizeBase = 0.1;
-
-    @ConfigComment({
-            "Controls the difference of size of stars,required starGenMixins",
-            "Vanilla: 0.1"
-    })
-    public static double starSizeDiff = 0.3;
-    @ConfigComment({
-            "Controls the random seed to use while generating stars.One seed,one unique star layout.",
-            "Set to 0 to generate a new seed everytime you enter the game.",
-            "Requires starGenMixins."
-    })
-    public static long starSeed = 23333;
-    @ConfigComment({
-            "Set if mixin on generating stars"
-    })
-    public static boolean starBrightnessMixins=true;
-    @ConfigComment({
-            "Let the stars shrinking using a sin function,This controls the shrinking frequency.",
-            "Use it with starShrinkingAmplitude!",
-            "Requires starBrightnessMixins"
-    })
-    public static float starShrinkingFreq = 0.2F;
-    @ConfigComment({
-            "Let the stars shrinking using a sin function,This controls the shrinking amplitude.",
-            "Use it with starShrinkingFreq!",
-            "Requires starBrightnessMixins"
-    })
-    public static float starShrinkingAmplitude = 0.1F;
-    @ConfigComment({
-            "Controls the basic value of stars' brightness.",
-            "Requires starBrightnessMixins",
-            "Vanilla: 0.5"
-    })
-    public static float starBrightness=0.5F;
-    @ConfigComment({
-            "Set the factor the time affects the brightness of stars.",
-            "for example,stars will invisible in day because their brightness is 0.",
-            "Requires starBrightnessMixins",
-            "Default: 1"
-    })
-    public static float starTimeAffectFactor=1;
+        @ConfigComment({
+                "Optimizes language file loading by:",
+                "- Skipping redundant resource reloads when switching languages",
+                "- Replacing regex-based .lang file parsing with a manual parser"
+        })
+        public static boolean fastLang = true;
+        @ConfigComment({
+                "Disables Forge's extended .lang file processing",
+                "Recommended for better performance when using optimizeLanguageLoading",
+                "Disable if experiencing missing translation keys"
+        })
+        public static boolean disableForgeLangExtensions = false;
+        @Experimental
+        @ConfigComment({"Enables enhanced language selection interface with drag-and-drop prioritization",
+                "- Pack-style language stacking (similar to resource packs)",
+                "- Visual language preview support",
+                "- Multiple language layer blending"})
+        public static boolean languageSelector = false;
+    }
     @ConfigComment("Allows players to eat food anytime, including in Creative mode")
     public static boolean alwaysEatable = false;
-
     @ConfigComment("Enables Creative mode players to eat food without consuming the item")
     public static boolean creativeEating = true;
-
-    @ConfigComment("")
-    public static int worldTimeFactor=1;
-    @ConfigComment("Show a time in the game at left-top location")
-    public static boolean showGameTime=false;
-    @ConfigComment("The x offset to add to the location of time shower.")
-    public static int timeShowerXOffset=2;
-    @ConfigComment("The y offset to add to the location of time shower.")
-    public static int timeShowerYOffset=4;
-
     @Hidden
     @ConfigComment({
             "Force not to calculate the world brightness while rendering weather particles.",
-    "That could avoid reading block information.",
-    "-1 for Vanilla behavior"})
-    public static boolean forceWeatherParticleUseConstLight =false;
-
-
-
-    public static void init() {
-        final File configFile = new File(Launch.minecraftHome, "config/astatine.properties");
-        final Properties props = new Properties();
-        StringBuilder configContent = new StringBuilder("# Astatine Mod Configure File\n\n");
-
-        try {
-            if(!Utils.createFile(configFile)) {
-                props.load(Files.newReader(configFile, StandardCharsets.UTF_8));
-            }
-            for (Field field : Configuration.class.getDeclaredFields()) {
-                if(field.getAnnotation(Hidden.class)!=null)continue;
-                String key = field.getName();
-                String valueStr = props.getProperty(key);
-                Object fieldValue;
-                try {
-                    fieldValue = parseValue(field.getType(), valueStr);
-                    Configuration.class.getField(key).set(null, fieldValue);
-                    //NPE when valueStr is null
-                } catch (Exception e) {
-                    fieldValue = field.get(null);
-                    System.out.println("Cannot parse configure value '" + key + "', the default value '" + fieldValue + "' would be used");
-                }
-                for (String s : field.getAnnotation(ConfigComment.class).value()) {
-                    configContent
-                            .append('#')
-                            .append(' ')
-                            .append(s)
-                            .append('\n');
-                }
-                configContent
-                        .append("# type:")
-                        .append(field.getType().getSimpleName())
-                        .append('\n')
-                        .append(field.getName())
-                        .append('=')
-                        .append(fieldValue)
-                        .append('\n')
-                        .append('\n');
-            }
-            Files.write(configContent.toString(), configFile, StandardCharsets.UTF_8);
-
-        } catch (Exception e) {
-            System.out.println("[Astatine] Unable to load configure file!Error: " + e.getMessage());
-        }
+            "That could avoid reading block information.",
+            "-1 for Vanilla behavior"})
+    public static boolean forceWeatherParticleUseConstLight = false;
+    @Group("world.time")
+    public static class WorldTime {
+        @ConfigComment({"Controls world time advancement granularity:",
+                "- Value N: World time increments by 1 tick every N real-time ticks",
+                "- Vanilla equivalent: 1 (Time progresses 1:1 with real ticks)",
+                "- Higher values = Slower world time progression",
+                "Example:",
+                "3 -> World time advances 1 tick every 3 server ticks"})
+        public static int worldTimeAdvancementInterval = 1;
+        @ConfigComment("Displays in-game time in HUD overlay")
+        public static boolean showGameTime = false;
+        @ConfigComment("X-axis offset for time display overlay")
+        public static int timeDisplayXOffset = 2;
+        @ConfigComment("Y-axis offset for time display overlay")
+        public static int timeDisplayYOffset = 4;
     }
 
-    private static Object parseValue(Class<?> type, String valueStr) {
-        Preconditions.checkNotNull(valueStr);
-        if (type == Boolean.TYPE) return Boolean.parseBoolean(valueStr);
-        if (type == Integer.TYPE) return Integer.parseInt(valueStr);
-        if (type == Double.TYPE) return Double.parseDouble(valueStr);
-        if (type == Long.TYPE) return Long.parseLong(valueStr);
-        if (type == Float.TYPE) return Float.parseFloat(valueStr);
-        throw new IllegalArgumentException("Unknown configure type: " + type);
+
+    @Experimental
+    @Group("random")
+    public static class Random {
+        @ConfigComment({"Replaces Vanilla's java.util.Random " +
+                "with ThreadLocalRandom in specific classes for better thread performance.",
+                "Behaves strangely most of the time."})
+        public static boolean fastRandom = false;
+        @Hidden
+        @ConfigComment({
+                "Replaces default random generator with XorShift128 implementation",
+                "Conflicts with ThreadLocalRandom optimization"
+        })
+        public static boolean useFasterRandom = false;
     }
 
-    @Target(ElementType.FIELD)
-    @Retention(RetentionPolicy.RUNTIME)
-    private @interface ConfigComment {
-        @Nls String[] value();
+    @Group("star.gen")
+    public static class StarGen {
+        public static boolean enabled = true;
+        @ConfigComment({
+                "Controls number of visible stars in night sky",
+                "0: Disable stars | >0: Custom count | Default: 1500"
+        })
+        public static int count = 3000;
+        @ConfigComment({
+                "Base size multiplier for generated stars (Vanilla: 0.15)"
+        })
+        public static double baseSize = 0.1;
+        @ConfigComment({
+                "Controls the random fluctuation amplitude for star sizes",
+                "- Actual size = baseSize +- (random * amplitude)",
+                "- Vanilla default: 0.1",
+                "Example:",
+                "0.3 -> Stars vary between ~30% of base size",
+                "0.0 -> All stars have identical size"
+        })
+        public static double sizeFluctuation = 0.3;
+        @ConfigComment({
+                "Seed value for star pattern generation",
+                "0: Random seed each session | Requires star generation mixins"
+        })
+        public static long seed = 23333;
     }
-    @Target(ElementType.FIELD)
-    @Retention(RetentionPolicy.RUNTIME)
-    private @interface Hidden { }
+
+    @Group("star.twinkling")
+    @ConfigComment({
+            "Controls star twinkling animation parameters",
+            "Mathematical model:",
+            "brightness = (base + sin(time * frequency) * amplitude) * timeFactor"
+    })
+    public static class StarTwinkling {
+        public static boolean enabled = true;
+        @ConfigComment({
+                "Oscillation frequency for brightness variation",
+                "Higher values = Faster twinkling",
+                "Unit: radians per tick"
+        })
+        public static float frequency = 0.2F;
+        @ConfigComment({"Peak brightness variation amplitude",
+                "Actual range: [-amplitude, +amplitude]",
+                "Example: 0.1 -> ~10% brightness variation"
+        })
+        public static float amplitude = 0.1F;
+        @ConfigComment({
+                "Base brightness level before modulation",
+                "Vanilla default: 0.5",
+                "Range: [0.0, 1.0]"
+        })
+        public static float base = 0.5F;
+        @ConfigComment({
+                "Time-of-day attenuation coefficient",
+                "0.0: Have nothing to do with day time",
+                "1.0: Full day/night cycle effect",
+                "Vanilla behavior: 1.0"
+        })
+        public static float timeAttenuation = 1;
+    }
 }

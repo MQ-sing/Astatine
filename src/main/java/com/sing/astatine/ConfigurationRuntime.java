@@ -14,7 +14,7 @@ import java.util.Arrays;
 public class ConfigurationRuntime {
     public static String[] languageList;
     static {
-        if (Configuration.languageSelector) {
+        if (Configuration.Lang.languageSelector) {
             final File file = Paths.get(Launch.minecraftHome.getAbsolutePath(), "config", "astatine_langlist.txt").toFile();
             try {
                 Utils.createFile(file);

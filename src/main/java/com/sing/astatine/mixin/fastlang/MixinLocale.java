@@ -32,7 +32,7 @@ public abstract class MixinLocale {
      */
     @Overwrite
     private void loadLocaleData(InputStream inputStreamIn) throws IOException {
-        if(!Configuration.noForgeLangExtension){
+        if(!Configuration.Lang.disableForgeLangExtensions){
             inputStreamIn= FMLCommonHandler.instance().loadLanguage(properties, inputStreamIn);
             if(inputStreamIn==null)return;
         }

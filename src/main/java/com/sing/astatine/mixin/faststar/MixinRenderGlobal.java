@@ -20,15 +20,15 @@ public class MixinRenderGlobal {
     @Overwrite
     private void renderStars(BufferBuilder bufferBuilderIn)
     {
-        miscFixes$random.setSeed(Configuration.starSeed);
+        miscFixes$random.setSeed(Configuration.StarGen.seed);
         bufferBuilderIn.begin(7, DefaultVertexFormats.POSITION);
 
-        for (int i = 0; i < Configuration.starCount; ++i)
+        for (int i = 0; i < Configuration.StarGen.count; ++i)
         {
             double d0 = miscFixes$random.nextFloat() * 2.0F - 1.0F;
             double d1 = miscFixes$random.nextFloat() * 2.0F - 1.0F;
             double d2 = miscFixes$random.nextFloat() * 2.0F - 1.0F;
-            double d3 = Configuration.starSizeBase + miscFixes$random.nextFloat() * Configuration.starSizeDiff;
+            double d3 = Configuration.StarGen.baseSize + miscFixes$random.nextFloat() * Configuration.StarGen.sizeFluctuation;
             double d4 = d0 * d0 + d1 * d1 + d2 * d2;
 
             if (!(d4 < 1.0D) || !(d4 > 0.01D)) {

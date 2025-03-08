@@ -2,6 +2,7 @@ package com.sing.astatine.core;
 
 import com.sing.astatine.Configuration;
 import com.sing.astatine.utils.Utils;
+import com.sing.astatine.utils.config.ConfigurationLoader;
 import it.unimi.dsi.fastutil.objects.ObjectArraySet;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
@@ -62,16 +63,19 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
     public String getAccessTransformerClass() {
         return null;
     }
+    private static void mixinIf(ArrayList<String> list,String name,boolean flag){
+       if(flag)list.add(name);
+    }
     @Override
     public List<String> getMixinConfigs() {
-        Configuration.init();
+        ConfigurationLoader.init(Configuration.class);
         final ArrayList<String> mixins = new ArrayList<>();
-        if (Configuration.languageSelector) mixins.add("mixins.multilang.json");
-        if (Configuration.fastLang) mixins.add("mixins.fastlang.json");
-        if (Configuration.fastRandom) mixins.add("mixins.fastrandom.json");
-        if (Configuration.starGenMixins) mixins.add("mixins.faststar.json");
-        if (Configuration.starBrightnessMixins) mixins.add("mixins.starshrinking.json");
-        if (Configuration.forceWeatherParticleUseConstLight) mixins.add("mixins.weather.json");
+        mixinIf(mixins,"mixins.multilang.json",         Configuration.Lang.languageSelector);
+        mixinIf(mixins,"mixins.fastlang.json",          Configuration.Lang.fastLang);
+        mixinIf(mixins,"mixins.fastrandom.json",        Configuration.Random.fastRandom);
+        mixinIf(mixins,"mixins.faststar.json",          Configuration.StarGen.enabled);
+        mixinIf(mixins,"mixins.star_twinkling.json",    Configuration.StarTwinkling.enabled);
+        mixinIf(mixins,"mixins.weather.json",           Configuration.forceWeatherParticleUseConstLight);
         return mixins;
     }
     public static class ASMTransformer implements IClassTransformer {
@@ -79,7 +83,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
         public byte[] transform(String name, String transformedName, byte[] basicClass) {
             switch (transformedName) {
                 case "net.minecraft.client.resources.Locale": {
-                    if (Configuration.forceAsciiFont) {
+                    if (Configuration.Lang.forceAsciiFont) {
                         final ClassASM asm = ClassASM.get(basicClass);
                         asm.methodByName("func_135024_b", "checkUnicode").breaks();
                         return asm.toBytes();
@@ -126,7 +130,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                     break;
                 }
                 case "net.minecraft.client.gui.GuiLanguage$List": {
-                    if (!Configuration.fastLang || Configuration.languageSelector) {
+                    if (!Configuration.Lang.fastLang || Configuration.Lang.languageSelector) {
                         break;
                     }
                     final ClassASM asm = ClassASM.get(basicClass);
@@ -168,7 +172,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                 }
                 case "net.minecraft.client.multiplayer.WorldClient":
                 case "net.minecraft.world.WorldServer":{
-                    if (Configuration.worldTimeFactor<=1) {
+                    if (Configuration.WorldTime.worldTimeAdvancementInterval<=1) {
                         break;
                     }
                     final ClassASM asm = ClassASM.get(basicClass);
@@ -194,7 +198,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                     return asm.toBytes();
                 }
                 case "net.minecraftforge.client.GuiIngameForge":{
-                    if (!Configuration.showGameTime) {
+                    if (!Configuration.WorldTime.showGameTime) {
                         break;
                     }
                     final ClassASM asm = ClassASM.get(basicClass);
@@ -208,7 +212,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                     return asm.toBytes();
                 }
             }
-            if (Configuration.fastRandom && FASTRANDOM_LIST.contains(transformedName)) {
+            if (Configuration.Random.fastRandom && FASTRANDOM_LIST.contains(transformedName)) {
                 final ClassASM asm = ClassASM.get(basicClass);
                 final MethodASM method = asm.constructor();
                 final InstructionList instructions = method.instructions();
@@ -233,7 +237,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                     }
                 }
                 return asm.toBytes();
-            } else if (Configuration.languageSelector && NEW_GUI_REPLACE.contains(transformedName)) {
+            } else if (Configuration.Lang.languageSelector && NEW_GUI_REPLACE.contains(transformedName)) {
                 final ClassASM asm = ClassASM.get(basicClass);
                 final MethodASM method = asm.methodByName("func_146284_a", "actionPerformed");
                 final InstructionList instructions = method.instructions();
