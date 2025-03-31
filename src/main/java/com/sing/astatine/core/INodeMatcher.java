@@ -18,7 +18,9 @@ public interface INodeMatcher<T extends AbstractInsnNode> {
     static INodeMatcher<MethodInsnNode> invokes(String name) {
         return invokes(name, Opcodes.INVOKEVIRTUAL);
     }
-
+    static INodeMatcher<MethodInsnNode> opcode(int opcode) {
+        return node -> node.getOpcode() == opcode;
+    }
     static INodeMatcher<MethodInsnNode> invokes(String name, int opcode) {
         return node -> (node instanceof MethodInsnNode) && node.getOpcode() == opcode && ((MethodInsnNode) node).name.equals(name);
     }

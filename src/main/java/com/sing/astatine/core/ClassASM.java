@@ -19,9 +19,9 @@ public class ClassASM {
         asm.reader=cr;
         return asm;
     }
-    public MethodASM constructor(){
+    public MethodASM constructor(String desc){
         for (MethodNode method : node.methods) {
-            if( FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(node.name,method.name,method.desc).equals("<init>"))return new MethodASM(method);
+            if(method.name.equals("<init>") && (desc==null || method.desc.equals(desc)))return new MethodASM(method);
         }
         throw new IllegalStateException("Class without constructors");
     }

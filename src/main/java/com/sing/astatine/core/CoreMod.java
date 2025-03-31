@@ -76,6 +76,11 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
         mixinIf(mixins,"mixins.faststar.json",          Configuration.StarGen.enabled);
         mixinIf(mixins,"mixins.star_twinkling.json",    Configuration.StarTwinkling.enabled);
         mixinIf(mixins,"mixins.weather.json",           Configuration.forceWeatherParticleUseConstLight);
+        mixinIf(mixins,"mixins.renderskip.json",Configuration.maxEntityRenderDistance!=-1||Configuration.maxTileEntityRenderDistance!=-1);
+        if(Configuration.ChunkCache.enabled){
+            if(Configuration.ChunkCache.maxCacheSize <16)throw new IllegalStateException("maxCacheSize must greater than 16");
+            mixins.add("mixins.chunkcache.json");
+        }
         return mixins;
     }
     public static class ASMTransformer implements IClassTransformer {
@@ -211,17 +216,48 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
 
                     return asm.toBytes();
                 }
+                case "net.minecraft.stats.StatisticsManager":{
+                    if(!Configuration.disableStats)break;
+                    final ClassASM asm = ClassASM.get(basicClass);
+                    asm.methodByName("func_150871_b", "increaseStat").breaks();
+                    return asm.toBytes();
+                }
+                case "net.minecraft.entity.item.EntityItem":{
+                    if(Configuration.forceItemEntityMerge) {
+                        final ClassASM asm = ClassASM.get(basicClass);
+                        final InstructionList instructions = asm.methodByName("func_70289_a", "combineItems").instructions();
+                        final MethodInsnNode invokeGetMaxStackSize = instructions.find(INodeMatcher.invokes(CoreModCore.mayDeobfuscated("func_77976_d", "getMaxStackSize")));
+                        final InstructionList list = new InstructionList();
+                        list.pop();
+                        list.constant(Integer.MAX_VALUE);
+                        instructions.replace(invokeGetMaxStackSize, list);
+                        asm.methodByName("func_70100_b_","onCollideWithPlayer").instructions()
+                                .redirect(null,CoreModCore.mayDeobfuscated("func_70441_a","addItemStackToInventory"),null,"com/sing/astatine/utils/Utils","addItemToInventory","(Lnet/minecraft/entity/player/InventoryPlayer;Lnet/minecraft/item/ItemStack;)Z",Opcodes.INVOKESTATIC);
+                        return asm.toBytes();
+                    }
+                }
+                case "net.minecraft.item.ItemStack":{
+                    if(!Configuration.enableExtendedStackStorage)break;
+                    final ClassASM asm = ClassASM.get(basicClass);
+                    asm.constructor("(Lnet/minecraft/nbt/NBTTagCompound;)V")
+                            .instructions()
+                            .redirect(null,CoreModCore.mayDeobfuscated("func_74771_c","getByte"),null,null,CoreModCore.mayDeobfuscated("func_74762_e","getInteger"),"(Ljava/lang/String;)I",-1);
+                    final InstructionList instructions = asm.methodByName("func_77955_b", "writeToNBT")
+                            .instructions();
+                    instructions.redirect(null,CoreModCore.mayDeobfuscated("func_74774_a","setByte"),null,null,CoreModCore.mayDeobfuscated("func_74768_a","setInteger"),"(Ljava/lang/String;I)V",-1);
+                    instructions.remove(instructions.find(INodeMatcher.opcode(Opcodes.I2B)));
+                    return asm.toBytes();
+                }
             }
             if (Configuration.Random.fastRandom && FASTRANDOM_LIST.contains(transformedName)) {
                 final ClassASM asm = ClassASM.get(basicClass);
-                final MethodASM method = asm.constructor();
+                final MethodASM method = asm.constructor(null);
                 final InstructionList instructions = method.instructions();
                 for (AbstractInsnNode node : instructions) {
                     if (node.getOpcode() == Opcodes.INVOKEVIRTUAL &&
                             ((MethodInsnNode) node).name.equals("setSeed")
                     ) {
-                        instructions.insert(node, InstructionList.of(new InsnNode(Opcodes.POP2)));
-                        instructions.remove(node);
+                        instructions.replace(node, new InsnNode(Opcodes.POP2));
                     } else if (node.getOpcode() == Opcodes.NEW && ((TypeInsnNode) node).desc.equals("java/util/Random")) {
                         InstructionList list = new InstructionList();
                         ThreadLocalRandom.current();

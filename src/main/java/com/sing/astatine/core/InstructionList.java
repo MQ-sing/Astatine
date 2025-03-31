@@ -435,11 +435,33 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
             if (matcher.match(node)) list.set(node, newNode);
         }
     }
-    public void replace(INodeMatcher<?> matcher, InsnList newNodes) {
+    public void replace(AbstractInsnNode node, InstructionList newNodes) {
+        list.insert(node,newNodes.list);
+        list.remove(node);
+    }
+    public void replace(AbstractInsnNode node, AbstractInsnNode newNode) {
+        list.set(node,newNode);
+    }
+    public void replace(INodeMatcher<?> matcher, InstructionList newNodes) {
         for (AbstractInsnNode node : this) {
             if (matcher.match(node)) {
-                list.insert(node,newNodes);
+                list.insert(node,newNodes.list);
                 list.remove(node);
+            }
+        }
+    }
+    public void redirect(String targetOwner,String targetName,String targetDesc,String newOwner,String newName,String newDesc,int code){
+        for (AbstractInsnNode node : this) {
+            if (node instanceof MethodInsnNode){
+                MethodInsnNode methodInsnNode=(MethodInsnNode) node;
+                if((targetOwner==null||methodInsnNode.owner.equals(targetOwner)) &&
+                        (targetName==null||methodInsnNode.name.equals(targetName)) &&
+                        (targetDesc==null||methodInsnNode.name.equals(targetDesc))){
+                    if(newOwner!=null)methodInsnNode.owner=newOwner;
+                    if(newDesc!=null)methodInsnNode.desc=newDesc;
+                    if(newName!=null)methodInsnNode.name=newName;
+                    if(code!=-1)methodInsnNode.setOpcode(code);
+                }
             }
         }
     }

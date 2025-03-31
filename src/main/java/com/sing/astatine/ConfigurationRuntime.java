@@ -13,6 +13,8 @@ import java.util.Arrays;
 
 public class ConfigurationRuntime {
     public static String[] languageList;
+    public static final double maxTileEntityRenderDistanceSquared =Configuration.maxTileEntityRenderDistance*Configuration.maxTileEntityRenderDistance;
+    public static final double maxEntityRenderDistanceSquared=Configuration.maxEntityRenderDistance*Configuration.maxEntityRenderDistance;
     static {
         if (Configuration.Lang.languageSelector) {
             final File file = Paths.get(Launch.minecraftHome.getAbsolutePath(), "config", "astatine_langlist.txt").toFile();

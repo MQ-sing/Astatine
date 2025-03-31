@@ -2,6 +2,11 @@ package com.sing.astatine.utils;
 
 import com.sing.astatine.Configuration;
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.chunk.Chunk;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -89,5 +94,29 @@ public class Utils {
         int minutes = (int) (totalMinutes % 60);
         String text=String.format("%02d:%02d", hours, minutes);
         mc.fontRenderer.drawString(text,Configuration.WorldTime.timeDisplayXOffset,Configuration.WorldTime.timeDisplayYOffset, 0xFFFFFF);
+    }
+    public static long chunkPos(@NotNull Chunk chunk){
+        return ChunkPos.asLong(chunk.x,chunk.z);
+    }
+    public static int doCompare(int...results){
+        for (int result : results) {
+            if(result!=0)return result;
+        }
+        return 0;
+    }
+    public static boolean addItemToInventory(InventoryPlayer inventory, ItemStack item){
+        boolean hasSucceed = false;
+        final int maxStackSize = item.getMaxStackSize();
+        while(item.getCount()>maxStackSize){
+            final ItemStack stack = item.copy();
+            stack.setCount(maxStackSize);
+            item.shrink(maxStackSize);
+            if(!inventory.addItemStackToInventory(stack)) return hasSucceed;
+            hasSucceed=true;
+        }
+        if(item.getCount()>0){
+            hasSucceed|=inventory.addItemStackToInventory(item);
+        }
+        return hasSucceed;
     }
 }

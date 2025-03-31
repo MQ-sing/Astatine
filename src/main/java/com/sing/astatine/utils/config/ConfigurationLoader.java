@@ -14,17 +14,18 @@ import java.util.Properties;
 
 public class ConfigurationLoader {
     private static boolean checkAnnotation(AnnotatedElement e, StringBuilder builder){
-        if (e.isAnnotationPresent(Hidden.class)) return false;
+        if (e.isAnnotationPresent(Hidden.class)) return true;
         if (e.isAnnotationPresent(Experimental.class)) builder.append("# [Experimental]\n");
         final ConfigComment commentAnnotation = e.getAnnotation(ConfigComment.class);
         if (commentAnnotation != null) for (String s : commentAnnotation.value()) {
             builder.append('#').append(' ').append(s).append('\n');
         }
-        return true;
+        return false;
     }
-    private static void initFor(Properties props, StringBuilder configContent, String baseGroup, Class<?> clazz) throws IllegalAccessException {
+    private static void initFor(Properties props, StringBuilder configContent, String baseGroup, Class<?> clazz,boolean hidden) throws IllegalAccessException {
         for (Field field : clazz.getDeclaredFields()) {
-            if (!checkAnnotation(field,configContent)) continue;
+            if(field.isAnnotationPresent(Ignore.class))continue;
+            boolean currentHidden=checkAnnotation(field,configContent);
             String groupName = getGroupName(baseGroup,field);
             String key = groupName + field.getName();
             String valueStr = props.getProperty(key);
@@ -37,7 +38,7 @@ public class ConfigurationLoader {
                 fieldValue = field.get(null);
                 System.out.println("Cannot parse configure value '" + key + "', the default value '" + fieldValue + "' would be used");
             }
-
+            if(hidden||currentHidden)continue;
             configContent
                     .append("# type:")
                     .append(field.getType().getSimpleName())
@@ -49,12 +50,15 @@ public class ConfigurationLoader {
                     .append('\n');
         }
         for (Class<?> declaredClass : clazz.getDeclaredClasses()) {
+            if(declaredClass.isAnnotationPresent(Ignore.class))continue;
             final String groupName = getGroupName(baseGroup, declaredClass);
-            if (!checkAnnotation(declaredClass,configContent)) continue;
-            configContent.append("#group: ").append(groupName).append('\n');
-            configContent.append('\n');
-            initFor(props, configContent, groupName+".", declaredClass);
-            configContent.append("# --------------------\n\n");
+            boolean currentHidden=hidden||checkAnnotation(declaredClass,configContent);
+            if (!currentHidden) {
+                configContent.append("#group: ").append(groupName).append('\n');
+                configContent.append('\n');
+            }
+            initFor(props, configContent, groupName+".", declaredClass,currentHidden);
+            if(!currentHidden) configContent.append("# --------------------\n\n");
         }
     }
 
@@ -72,7 +76,7 @@ public class ConfigurationLoader {
             if (!Utils.createFile(configFile)) {
                 props.load(Files.newReader(configFile, StandardCharsets.US_ASCII));
             }
-            initFor(props, configContent, "", clazz);
+            initFor(props, configContent, "", clazz,false);
             Files.write(configContent.toString(), configFile, StandardCharsets.US_ASCII);
         } catch (Exception e) {
             System.out.println("[Astatine] Unable to load configure file!Error: " + e.getMessage());

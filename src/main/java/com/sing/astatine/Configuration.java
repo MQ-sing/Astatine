@@ -1,7 +1,32 @@
 package com.sing.astatine;
 
 import com.sing.astatine.utils.config.*;
+
 public class Configuration {
+    @ConfigComment("Allows players to eat food anytime, including in Creative mode")
+    public static boolean alwaysEatable = false;
+    @ConfigComment("Let creative mode players eat food without consuming the item")
+    public static boolean creativeEating = true;
+    @ConfigComment("Skip rendering for titlentities that out of the distance,-1 to disable")
+    public static double maxTileEntityRenderDistance=-1;
+    @ConfigComment("Skip rendering for entities that out of the distance,-1 to disable")
+    public static double maxEntityRenderDistance=-1;
+    @ConfigComment("Disable stats system,may increase performance.")
+    public static boolean disableStats=false;
+    @ConfigComment({ "Enables 32-bit integer storage for item stack sizes in world saves (vanilla: 8-bit byte).",
+            "Affects only storage format, does NOT modify in-game stack limits",
+            "Potential conflicts with other stack-extending mods",
+            "Required for safe handling of stacks >127 when using force-stack-merging"})
+    public static boolean enableExtendedStackStorage =false;
+    @ConfigComment({"Allows item entities to merge beyond normal stack limits.",
+            "WARNING: REQUIRES extended-stack-storage-format to prevent data loss on chunk unload(e.g. use enableExtendedStackStorage option)"})
+    public static boolean forceItemEntityMerge =false;
+    @Hidden
+    @ConfigComment({
+            "Force not to calculate the world brightness while rendering weather particles.",
+            "That could avoid reading block information.",
+            "-1 for Vanilla behavior"})
+    public static boolean forceWeatherParticleUseConstLight = false;
     @Group("lang")
     public static class Lang {
         @ConfigComment("Forces ASCII font rendering for all text elements, " +
@@ -27,16 +52,50 @@ public class Configuration {
                 "- Multiple language layer blending"})
         public static boolean languageSelector = false;
     }
-    @ConfigComment("Allows players to eat food anytime, including in Creative mode")
-    public static boolean alwaysEatable = false;
-    @ConfigComment("Enables Creative mode players to eat food without consuming the item")
-    public static boolean creativeEating = true;
-    @Hidden
-    @ConfigComment({
-            "Force not to calculate the world brightness while rendering weather particles.",
-            "That could avoid reading block information.",
-            "-1 for Vanilla behavior"})
-    public static boolean forceWeatherParticleUseConstLight = false;
+
+    @ConfigComment({"Cache loaded chunks.",
+            "WARNING: Directly storing Chunk objects might cause compatibility issues with some mods."})
+    @Experimental
+    @Group("chunkcache")
+    public static class ChunkCache {
+        public static boolean enabled = false;
+        @ConfigComment({"Maximum number of chunks allowed in the cache.",
+                "Higher values may improve chunk loading performance but increase memory usage.",
+                "Minimum value: 16"})
+        public static int maxCacheSize = 16384;
+        @ConfigComment({"Minimum number of chunks guaranteed to be retained in cache,",
+                "This helps reduce reloading overhead for core areas (e.g. player bases)."})
+        public static int minReservedChunks = 127;
+        @ConfigComment({"Indicate the increment speed of interest-level of chunks that be loaded.",
+                "Greater value:cache more chunks",
+                "Smaller value:cache less chunks",
+                "Default: 100"})
+        @Hidden
+        //not implemented yet
+        public static int priorityIncrementFactor = 100;
+        @ConfigComment({
+                "Interval in game ticks between automatic cache cleanup checks.",
+                "1 second = 20 ticks (at 20 TPS).",
+                "Default: 3200 ticks (2.5 minutes)"
+        })
+        public static int cleanupInterval = 3200;
+
+        @ConfigComment({
+                "Minimum priority score required to retain chunks during cleanup.",
+                "Chunks with scores below this threshold will be removed first.",
+                "Set higher to keep fewer chunks; lower to preserve more."
+        })
+        public static int minLoadedTimeToRetain = 250;
+        @ConfigComment({
+                "Maximum idle time (in ticks) a cached chunk can remain unaccessed",
+                "before becoming eligible for cleanup. Higher values keep chunks cached longer",
+                "but may increase memory usage. Combines with access frequency for cleanup decisions"
+        })
+        public static int maxIdleTimeToPurge = 0;
+        @ConfigComment("Print debug info in console")
+        public static boolean debug=false;
+    }
+
     @Group("world.time")
     public static class WorldTime {
         @ConfigComment({"Controls world time advancement granularity:",
@@ -72,7 +131,7 @@ public class Configuration {
 
     @Group("star.gen")
     public static class StarGen {
-        public static boolean enabled = true;
+        public static boolean enabled = false;
         @ConfigComment({
                 "Controls number of visible stars in night sky",
                 "0: Disable stars | >0: Custom count | Default: 1500"
