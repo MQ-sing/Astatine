@@ -15,6 +15,10 @@ public class MethodASM {
     public InstructionList instructions(){
         return new InstructionList(node.instructions);
     }
+    public InstructionList overwrite(){
+        node.instructions.clear();
+        return new InstructionList(node.instructions);
+    }
 
     /**
      * Let the method returns directly,void returned.

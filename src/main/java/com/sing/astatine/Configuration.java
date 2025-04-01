@@ -18,6 +18,11 @@ public class Configuration {
             "Potential conflicts with other stack-extending mods",
             "Required for safe handling of stacks >127 when using force-stack-merging"})
     public static boolean enableExtendedStackStorage =false;
+    @ConfigComment({
+            "Delays rendering of projectile entities (snowballs/ender pearls/etc.) to prevent view obstruction,in ticks.",
+            "Backports from new versions."
+    })
+    public static int projectileRenderDelay=2;
     @ConfigComment({"Allows item entities to merge beyond normal stack limits.",
             "WARNING: REQUIRES extended-stack-storage-format to prevent data loss on chunk unload(e.g. use enableExtendedStackStorage option)"})
     public static boolean forceItemEntityMerge =false;
@@ -140,7 +145,7 @@ public class Configuration {
         @ConfigComment({
                 "Base size multiplier for generated stars (Vanilla: 0.15)"
         })
-        public static double baseSize = 0.1;
+        public static double baseSize = 0.09;
         @ConfigComment({
                 "Controls the random fluctuation amplitude for star sizes",
                 "- Actual size = baseSize +- (random * amplitude)",
@@ -150,6 +155,16 @@ public class Configuration {
                 "0.0 -> All stars have identical size"
         })
         public static double sizeFluctuation = 0.3;
+        @ConfigComment({
+                "Controls what method should be used while generating star sizes.",
+                "Given f as the star size,b as baseSize.",
+                "s for sizeFluctuation value,rand() for a random function that return a [0,1) value,randI()=rand()*2-1",
+                "Allowed methods:",
+                "0 -- liner-offset: f=b+randI()*s",
+                "1 -- exponential: f=1-(ln(1-randI()))*s",
+                "2 -- log-normal: f=e^([nextGaussian]()*s)"
+        })
+        public static int sizeGenerateMethod=3;
         @ConfigComment({
                 "Seed value for star pattern generation",
                 "0: Random seed each session | Requires star generation mixins"

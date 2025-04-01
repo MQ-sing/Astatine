@@ -9,15 +9,18 @@ public class XORShiftRandom extends Random {
         long s0 = stateB;
         stateA=s0;
         s1^=(s1<<23);
-        stateB=s1^s0^(s1>>17)^(s0>>26);
+        stateB=s1^s0^(s1>>>18)^(s0>>>5);
         return stateB+s0;
     }
     @Override
     public void setSeed(long seed){
-        stateB=seed^0xBEEFC418C31AE1CDL;
-        stateA=~stateB+0xCC;
+        stateA=Utils.splitMix64(seed);
+        stateB=Utils.splitMix64(stateA);
     }
     protected int next(int bits) {
         return (int)(xorshift128plus() >>> (64-bits));
+    }
+    public double nextOffset(){
+        return nextDouble()*2-1;
     }
 }

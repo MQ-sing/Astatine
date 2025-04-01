@@ -85,7 +85,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
     }
     public static class ASMTransformer implements IClassTransformer {
         @Override
-        public byte[] transform(String name, String transformedName, byte[] basicClass) {
+        public byte[] transform(String obfuscatedName, String transformedName, byte[] basicClass) {
             switch (transformedName) {
                 case "net.minecraft.client.resources.Locale": {
                     if (Configuration.Lang.forceAsciiFont) {
@@ -194,7 +194,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                     list.loadThis();
                     list.swap();
                     list.setField(asm.name(),counter,"I");
-                    list.staticVar("com/sing/astatine/Configuration","worldTimeFactor","I");
+                    list.configInt("worldTimeFactor");
                     list.doJump(Opcodes.IF_ICMPLT, node.label);
                     list.loadThis();
                     list.constant(0);
@@ -246,6 +246,24 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                             .instructions();
                     instructions.redirect(null,CoreModCore.mayDeobfuscated("func_74774_a","setByte"),null,null,CoreModCore.mayDeobfuscated("func_74768_a","setInteger"),"(Ljava/lang/String;I)V",-1);
                     instructions.remove(instructions.find(INodeMatcher.opcode(Opcodes.I2B)));
+                    return asm.toBytes();
+                }
+                case "net.minecraft.entity.projectile.EntityThrowable":{
+                    if(Configuration.projectileRenderDelay==0)break;
+                    final ClassASM asm = ClassASM.get(basicClass);
+                    String name=CoreModCore.mayDeobfuscated("func_145770_h","isInRangeToRender3d");
+                    final MethodASM method = asm.addMethod(name,"(DDD)Z",Opcodes.ACC_PUBLIC);
+                    final InstructionList instructions = method.instructions();
+                    instructions.getFieldThis("net/minecraft/entity/Entity",CoreModCore.mayDeobfuscated("field_70173_aa","ticksExisted"),"I");
+                    instructions.configInt("projectileRenderDelay");
+                    final LabelNode label = new LabelNode();
+                    instructions.doJump(Opcodes.IF_ICMPGE,label);
+                    instructions.return0();
+                    instructions.label(label);
+                    instructions.loadThis();
+                    instructions.loadVars(Opcodes.DLOAD,1,3,5);
+                    instructions.invokeSpecial("net/minecraft/entity/Entity",name,"(DDD)Z");
+                    instructions.returnI();
                     return asm.toBytes();
                 }
             }

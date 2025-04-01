@@ -51,12 +51,23 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     public void loadD(int index) {
         list.add(new VarInsnNode(Opcodes.DLOAD, index));
     }
+
     /**
      * Appends an LLOAD instruction for the given variable index.
      * @param index The local variable index.
      */
     public void loadL(int index) {
         list.add(new VarInsnNode(Opcodes.LLOAD, index));
+    }
+    public void loadVars(int opcode,int... indexes){
+        for (int index : indexes) {
+            list.add(new VarInsnNode(opcode,index));
+        }
+    }
+    public void loadVarsInRange(int opcode,int begin,int end){
+        for (int index =begin;index<end;++index) {
+            list.add(new VarInsnNode(opcode,index));
+        }
     }
     /**
      * Appends an 'ALOAD 0' instruction(load "this" reference)
@@ -231,6 +242,9 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     }
     public void configFlag(String name){
         list.add(new FieldInsnNode(Opcodes.GETSTATIC, "com/sing/astatine/Configuration", name, "Z"));
+    }
+    public void configInt(String name){
+        list.add(new FieldInsnNode(Opcodes.GETSTATIC, "com/sing/astatine/Configuration", name, "I"));
     }
     public void field(String owner,String name,String desc){
         list.add(new FieldInsnNode(Opcodes.GETFIELD,owner,name,desc));

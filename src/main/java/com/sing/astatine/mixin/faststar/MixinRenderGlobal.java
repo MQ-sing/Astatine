@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.Unique;
 @Mixin(RenderGlobal.class)
 public class MixinRenderGlobal {
     @Unique
-    private static final XORShiftRandom miscFixes$random =new XORShiftRandom();
+    private static final XORShiftRandom astatine$random =new XORShiftRandom();
     /**
      * @author MQ-sing
      * @reason main feature
@@ -20,15 +20,21 @@ public class MixinRenderGlobal {
     @Overwrite
     private void renderStars(BufferBuilder bufferBuilderIn)
     {
-        miscFixes$random.setSeed(Configuration.StarGen.seed);
+        astatine$random.setSeed(Configuration.StarGen.seed);
         bufferBuilderIn.begin(7, DefaultVertexFormats.POSITION);
 
         for (int i = 0; i < Configuration.StarGen.count; ++i)
         {
-            double d0 = miscFixes$random.nextFloat() * 2.0F - 1.0F;
-            double d1 = miscFixes$random.nextFloat() * 2.0F - 1.0F;
-            double d2 = miscFixes$random.nextFloat() * 2.0F - 1.0F;
-            double d3 = Configuration.StarGen.baseSize + miscFixes$random.nextFloat() * Configuration.StarGen.sizeFluctuation;
+            double d0 = astatine$random.nextFloat() * 2.0F - 1.0F;
+            double d1 = astatine$random.nextFloat() * 2.0F - 1.0F;
+            double d2 = astatine$random.nextFloat() * 2.0F - 1.0F;
+            double d3;
+            switch (Configuration.StarGen.sizeGenerateMethod){
+                case 0:d3 = Configuration.StarGen.baseSize + astatine$random.nextOffset() * Configuration.StarGen.sizeFluctuation;break;
+                case 1:d3 = Configuration.StarGen.baseSize*(1-Math.log(1-astatine$random.nextDouble())*Configuration.StarGen.sizeFluctuation);break;
+                case 2:d3 = Configuration.StarGen.baseSize*Math.exp(astatine$random.nextGaussian()*Configuration.StarGen.sizeFluctuation);break;
+                default:throw new IllegalArgumentException("bad Configuration.StarGen.sizeGenerateMethod value,can be only 0,1,2");
+            }
             double d4 = d0 * d0 + d1 * d1 + d2 * d2;
 
             if (!(d4 < 1.0D) || !(d4 > 0.01D)) {
@@ -47,7 +53,7 @@ public class MixinRenderGlobal {
             double d11 = Math.atan2(Math.sqrt(d0 * d0 + d2 * d2), d1);
             double d12 = Math.sin(d11);
             double d13 = Math.cos(d11);
-            double d14 = miscFixes$random.nextDouble() * Math.PI * 2.0D;
+            double d14 = astatine$random.nextDouble() * Math.PI * 2.0D;
             double d15 = Math.sin(d14);
             double d16 = Math.cos(d14);
 

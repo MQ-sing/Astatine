@@ -23,6 +23,6 @@ public class MixinRenderGlobal {
         final double a = entityIn.posX-camX;
         final double b = entityIn.posY-camY;
         final double c = entityIn.posZ-camZ;
-        return a*a+b*b+c*c<ConfigurationRuntime.maxEntityRenderDistanceSquared;
+        return a*a+b*b+c*c<ConfigurationRuntime.maxEntityRenderDistanceSquared && instance.shouldRender(entityIn,camera,camX,camY,camZ);
     }
 }

@@ -32,12 +32,19 @@ public class ClassASM {
         }
         throw new IllegalStateException("Class without static blocks");
     }
-    public MethodASM methodByName(String srg,String deobfuscated){
-        final String name = CoreModCore.isRuntimeDeobfuscated ? deobfuscated : srg;
+    public MethodASM methodByName(String name){
         for (MethodNode method : node.methods) {
             if( FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(node.name,method.name,method.desc).equals(name))return new MethodASM(method);
         }
         return null;
+    }
+    public MethodASM methodByName(String srg,String deobfuscated){
+        return methodByName(CoreModCore.isRuntimeDeobfuscated ? deobfuscated : srg);
+    }
+    public MethodASM addMethod(String name,String desc,int access){
+        final MethodNode node = new MethodNode(access, name, desc, null, null);
+        this.node.methods.add(node);
+        return new MethodASM(node);
     }
     public byte[] toBytes(){
         return toBytes(true);
