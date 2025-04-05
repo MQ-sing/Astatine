@@ -1,20 +1,99 @@
-## TemplateDevEnv
-_For Kotlin see [TemplateDevEnvKt](https://github.com/CleanroomMC/TemplateDevEnvKt)_
+# Astatine 1.12.2
+A Minecraft 1.12.2 mod that optimizing/improving some things miscellaneously.
 
-Template workspace for modding Minecraft 1.12.2. Licensed under MIT, it is made for public use.
+# Core Features
+### Fast Random (Experimental)
+Partial unstable port of [Francium mod](https://github.com/MCTeamPotato/Francium).  
+Replaces `Random` with `ThreadLocalRandom` in specific classes via bytecode editing.
 
-This template runs on Java 21! Currently utilizies **Gradle 8.12** + **[RetroFuturaGradle](https://github.com/GTNewHorizons/RetroFuturaGradle) 1.4.1** + **Forge 14.23.5.2847**.
+**Not tested completely! May cause unexpected problems.**
 
-With **coremod and mixin support** that is easy to configure.
+### FastLang
 
-### Instructions:
+Include the [FastLang](https://www.mcmod.cn/class/17229.html) mod features:  
+Avoid loading entire game resources(As what F3+T do) when select language,just load language itself.
 
-1. Click `use this template` at the top.
-2. Clone the repository that you have created with this template to your local machine.
-3. Make sure IDEA is using Java 21 for Gradle before you sync the project. Verify this by going to IDEA's `Settings > Build, Execution, Deployment > Build Tools > Gradle > Gradle JVM`.
-4. Open the project folder in IDEA. When prompted, click "Load Gradle Project" as it detects the `build.gradle`, if you weren't prompted, right-click the project's `build.gradle` in IDEA, select `Link Gradle Project`, after completion, hit `Refresh All` in the gradle tab on the right.
-5. Run gradle tasks such as `runClient` and `runServer` in the IDEA gradle tab, or use the auto-imported run configurations like `1. Run Client`.
+This mod also `Splitter`/replaces regex-based .lang parsing with a manual state machine.  
 
-### Mixins:
+*MojangAB uses `Splitter`s to parse the most EXTREME COMPLEX syntax:`key=value`*  
+*What are they doing all the days?*
 
-- When writing Mixins on IntelliJ, it is advisable to use latest [MinecraftDev Fork for RetroFuturaGradle](https://github.com/eigenraven/MinecraftDev/releases).
+### Multi Language
+Allows selecting multiple language just like resource packs in a selecting GUI.  
+For this implement, the performance is much higher than [Compromise mod](https://github.com/Nova-Committee/Compromise) which has similar features.It combines language keys into the hashmap directly instead iterating over the selected language list every time when solve a translation key.  
+
+This is a backporting of [Language Reload mod](https://github.com/Jerozgen/LanguageReload).
+
+### Starfield Overhaul
+
+Rewrite Vanilla's star generating logic,allows to modify:
+- The count of stars
+- Basic size of stars
+- Size deviation of stars,also include the random method(linear-offset/exponential/log-normal)
+- Random seed to generate stars
+
+Overhauls star generation by replacing linear offset with selectable custom algorithms. Despite using a faster RNG, the added algorithmic complexity may increase game load time.
+### Star twinkling
+
+Rewrite `net.minecraft.world.World#getStarBrightnessBody` method, implement a twinkling effect for stars.
+
+Timing function for brightness: sin(t), where t represents time. 
+Considering to add more brightness functions.
+Allow controlling:
+- The basic brightness
+- Twinkling frequency
+- Twinkling amplitude
+### Force ASCII Font
+
+Do what the [ForceASCIIFont Mod](https://github.com/ZekerZhayard/ForceASCIIFont) do,  
+Fixes bug: render all characters as Unicode font style if the language file of the corresponding language contains non-ASCII characters.
+
+Just overrides FontRenderer.getUnicodeFlag() to always return `false`.
+
+### Eating Anytime
+Bypasses canEat() checks in EntityPlayer.
+- Creative mode players can eat anytime.
+- Configurable to allow eating any time,ignores any eating precondition.
+
+### World Time Scaling
+Increase the world time once `N` ticks(N is an integer) only in order to slow down day-cycle in times.
+
+### Chunk Caching
+
+Chunks with total kept time ≥ chunkcache.minLoadedTimeToRetain (ticks) are cached.
+
+Sort cached chunks by total kept time (ascending).
+
+Every chunkcache.cleanupInterval ticks,For the first 50% of entries:
+- Remove if time since last load ≥ chunkcache.maxIdleTimeToPurge (ticks).
+- Top chunkcache.minReservedChunks chunks (longest load time) are immune to eviction. 
+
+While caching things,if cache size ≥ chunkcache.maxCacheSize, evicts the least-loaded non-reserved chunk at the same time.
+
+### Item Stack Merging
+Forces merging of any nearby EntityItem regardless of stackability.  
+
+Modifies EntityItem.combineItems() to replace getMaxStackSize() with Integer.MAX_VALUE.  
+*Other vanilla checks would still prevent merging.*
+
+### Rendering Skip
+Avoid rendering (Tile)Entities beyond max(Tile)EntityRenderDistance(Euclidean distance).
+
+### Projectile Hiding
+Render projectiles only if their age (ticks) exceeds the threshold.
+
+## About the configuration system
+Location: config/astatine.properties.
+Read once at game startup. No runtime reloading...  
+
+The configuration file would be generated with complete comments and default values.
+
+## Planned Features
+*These features are just an idea,to the actual implement may be a far time.*
+- Rewrite weather particles(rain/snow).*I don't know what it should be actually*
+- Migrate current configuration system to the [ConfigAnyTime Mod](https://www.mcmod.cn/class/11060.html) which support runtime configuration modifying and visual config screen.*Incompatible with current configuration file syntax.*  
+
+*These features are in development or ready to implement.May be ill-considered.*
+- Remove the stats system completely.*May invalidates advancement system.*
+- Save chunks that has enough `inhabitTime` instead of saving them all after unload.*Conflicts with vanilla's village generating.It seems that seeds would affect the villages' location but not their struct.Unsaved chunks would be regenerated when close to them again,but Minecraft will generate a different struct for the same village.*
+- Some misc optimization(e.g. replace `HashSet<Long>` with `LongOpenHashSet`),tuck them all into miscOptimization options.
