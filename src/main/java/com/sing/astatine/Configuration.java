@@ -18,14 +18,18 @@ public class Configuration {
             "Potential conflicts with other stack-extending mods",
             "Required for safe handling of stacks >127 when using force-stack-merging"})
     public static boolean enableExtendedStackStorage =false;
-    @ConfigComment({
-            "Delays rendering of projectile entities (snowballs/ender pearls/etc.) to prevent view obstruction,in ticks.",
-            "Backports from new versions."
-    })
-    public static int projectileRenderDelay=2;
     @ConfigComment({"Allows item entities to merge beyond normal stack limits.",
             "WARNING: REQUIRES extended-stack-storage-format to prevent data loss on chunk unload(e.g. use enableExtendedStackStorage option)"})
     public static boolean forceItemEntityMerge =false;
+    @ConfigComment({
+            "Render projectiles only if their age (in ticks) exceeds a threshold.",
+            "Backports from new versions."
+    })
+    public static int projectileRenderDelay=2;
+    @ConfigComment({
+            "Some misc optimization that is not so effective."
+    })
+    public static boolean miscOptimization=false;
     @Hidden
     @ConfigComment({
             "Force not to calculate the world brightness while rendering weather particles.",
@@ -71,19 +75,12 @@ public class Configuration {
         @ConfigComment({"Minimum number of chunks guaranteed to be retained in cache,",
                 "This helps reduce reloading overhead for core areas (e.g. player bases)."})
         public static int minReservedChunks = 127;
-        @ConfigComment({"Indicate the increment speed of interest-level of chunks that be loaded.",
-                "Greater value:cache more chunks",
-                "Smaller value:cache less chunks",
-                "Default: 100"})
-        @Hidden
-        //not implemented yet
-        public static int priorityIncrementFactor = 100;
         @ConfigComment({
                 "Interval in game ticks between automatic cache cleanup checks.",
                 "1 second = 20 ticks (at 20 TPS).",
-                "Default: 3200 ticks (2.5 minutes)"
+                "Default: 1200 ticks (1 minute)"
         })
-        public static int cleanupInterval = 3200;
+        public static int cleanupInterval = 1200;
 
         @ConfigComment({
                 "Minimum priority score required to retain chunks during cleanup.",
@@ -96,7 +93,7 @@ public class Configuration {
                 "before becoming eligible for cleanup. Higher values keep chunks cached longer",
                 "but may increase memory usage. Combines with access frequency for cleanup decisions"
         })
-        public static int maxIdleTimeToPurge = 0;
+        public static int maxIdleTimeToPurge = 1000;
         @ConfigComment("Print debug info in console")
         public static boolean debug=false;
     }
@@ -126,12 +123,6 @@ public class Configuration {
                 "with ThreadLocalRandom in specific classes for better thread performance.",
                 "Behaves strangely most of the time."})
         public static boolean fastRandom = false;
-        @Hidden
-        @ConfigComment({
-                "Replaces default random generator with XorShift128 implementation",
-                "Conflicts with ThreadLocalRandom optimization"
-        })
-        public static boolean useFasterRandom = false;
     }
 
     @Group("star.gen")
@@ -148,8 +139,6 @@ public class Configuration {
         public static double baseSize = 0.09;
         @ConfigComment({
                 "Controls the random fluctuation amplitude for star sizes",
-                "- Actual size = baseSize +- (random * amplitude)",
-                "- Vanilla default: 0.1",
                 "Example:",
                 "0.3 -> Stars vary between ~30% of base size",
                 "0.0 -> All stars have identical size"
@@ -164,10 +153,10 @@ public class Configuration {
                 "1 -- exponential: f=1-(ln(1-randI()))*s",
                 "2 -- log-normal: f=e^([nextGaussian]()*s)"
         })
-        public static int sizeGenerateMethod=3;
+        public static int sizeGenerateMethod=2;
         @ConfigComment({
                 "Seed value for star pattern generation",
-                "0: Random seed each session | Requires star generation mixins"
+                "0: Random seed each session"
         })
         public static long seed = 23333;
     }
@@ -204,5 +193,18 @@ public class Configuration {
                 "Vanilla behavior: 1.0"
         })
         public static float timeAttenuation = 1;
+    }
+    @Experimental
+    @Group("lazy_saving")
+    @ConfigComment({"Only save chunks if their inhabited time greater than a value.",
+    "This means chunks that players never reach would never be saved in disk/memory",
+    "Chunks that has been stayed at by players for enough time would be saved.",
+    "It is advised to use this feature with ChunkCache option,",
+    "Then chunks that be loaded for enough time will be cached in memory,and game need not generate them again."})
+    public static class LazyChunkSaving{
+        public static boolean enabled=false;
+        @SuppressWarnings("unused")
+        @ConfigComment({"How long the player stay will trigger saving, in ticks"})
+        public static long minimumInhabitedTime=0;
     }
 }

@@ -1,10 +1,7 @@
 package com.sing.astatine.core;
 
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.InsnNode;
-import org.objectweb.asm.tree.LabelNode;
-import org.objectweb.asm.tree.LocalVariableNode;
-import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.*;
 
 public class MethodASM {
     public MethodNode node;
@@ -13,28 +10,51 @@ public class MethodASM {
         this.node = node;
     }
     public InstructionList instructions(){
-        return new InstructionList(node.instructions);
+        return InstructionList.fromMethod(this);
     }
-    public InstructionList overwrite(){
-        node.instructions.clear();
-        return new InstructionList(node.instructions);
+    public InstructionList createList(){
+        return new InstructionList().bind(this);
     }
 
     /**
      * Let the method returns directly,void returned.
      */
     public void breaks(){
-        node.instructions.insertBefore(node.instructions.getFirst(),new InsnNode(Opcodes.RETURN));
+        node.instructions.clear();
+        node.instructions.add(new InsnNode(Opcodes.RETURN));
+    }
+    public void breaksNull(){
+        node.instructions.clear();
+        node.instructions.add(new InsnNode(Opcodes.ACONST_NULL));
+        node.instructions.add(new InsnNode(Opcodes.ARETURN));
+    }
+    public void breaksThis(){
+        node.instructions.clear();
+        node.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));
+        node.instructions.add(new InsnNode(Opcodes.ARETURN));
     }
     public void breaks(boolean value){
         final InstructionList list = new InstructionList();
         list.constant(value);
-        list.returnI();
-        instructions().insertAfterHead(list);
+        list.returns();
+        instructions().insertHead(list);
     }
     public int local(String name, String desc, LabelNode start,LabelNode end){
-        final int id = node.maxLocals++;
-        node.localVariables.add(new LocalVariableNode(name,desc,null,start,end,id));
-        return id;
+        final int index = node.localVariables.size();
+        node.localVariables.add(new LocalVariableNode(name,desc,null,start,end,index));
+        return index;
+    }
+    private String returnType;
+    public String returnType(){
+        if(returnType==null) {
+            returnType = CoreModCore.getDescReturnType(node.desc);
+        }
+        return returnType;
+    }
+    public void replace(INodeMatcher<?> matcher, InstructionList newNodes) {
+        instructions().replace(matcher,newNodes);
+    }
+    public void insertAtHead(InstructionList list){
+        node.instructions.insert(node.instructions.getFirst(),list.list);
     }
 }

@@ -1,14 +1,18 @@
 package com.sing.astatine.core;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 
 import javax.annotation.Nonnull;
 import java.util.*;
+import java.util.function.Consumer;
 
 @SuppressWarnings("unused")
 public class InstructionList implements List<AbstractInsnNode>, Iterable<AbstractInsnNode>, RandomAccess {
+    @Nullable
+    private MethodASM asm;
     public final InsnList list;
     /**
      * Constructs an InstructionList wrapping an existing {@link InsnList}.
@@ -17,159 +21,220 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     public InstructionList(InsnList list) {
         this.list = list;
     }
+    public static InstructionList fromMethod(MethodASM asm){
+        return new InstructionList(asm.node.instructions).bind(asm);
+    }
+    public InstructionList bind(MethodASM asm){
+        this.asm=asm;
+        return this;
+    }
     /**
      * Constructs an empty InstructionList with a new {@link InsnList}.
      */
     public InstructionList() {
         list = new InsnList();
     }
+    public static InstructionList constructWithNoArgs(String name){
+        return new InstructionList().allocNew(name).construct(name);
+    }
+    public InstructionList load(int index){
+        list.add(new VarInsnNode(CoreModCore.doTypeOffset(Opcodes.ILOAD,Objects.requireNonNull(asm).node.localVariables.get(index).desc),index));
+        return this;
+    }
+    public InstructionList load(int... indexes){
+        for (int index : indexes) {
+            list.add(new VarInsnNode(CoreModCore.doTypeOffset(Opcodes.ILOAD,Objects.requireNonNull(asm).node.localVariables.get(index).desc),index));
+        }
+        return this;
+    }
     /**
      * Appends an ALOAD instruction for the given variable index.
      * @param index The local variable index.
      */
-    public void loadA(int index) {
+    public InstructionList loadA(int index) {
         list.add(new VarInsnNode(Opcodes.ALOAD, index));
+        return this;
     }
     /**
      * Appends an ILOAD instruction for the given variable index.
      * @param index The local variable index.
      */
-    public void loadI(int index) {
+    public InstructionList loadI(int index) {
         list.add(new VarInsnNode(Opcodes.ILOAD, index));
+        return this;
     }
     /**
      * Appends an FLOAD instruction for the given variable index.
      * @param index The local variable index.
      */
-    public void loadF(int index) {
+    public InstructionList loadF(int index) {
         list.add(new VarInsnNode(Opcodes.FLOAD, index));
+        return this;
     }
     /**
      * Appends an DLOAD instruction for the given variable index.
      * @param index The local variable index.
      */
-    public void loadD(int index) {
+    public InstructionList loadD(int index) {
         list.add(new VarInsnNode(Opcodes.DLOAD, index));
+        return this;
     }
 
     /**
      * Appends an LLOAD instruction for the given variable index.
      * @param index The local variable index.
      */
-    public void loadL(int index) {
+    public InstructionList loadL(int index) {
         list.add(new VarInsnNode(Opcodes.LLOAD, index));
+        return this;
     }
-    public void loadVars(int opcode,int... indexes){
+    public InstructionList loadVars(int opcode,int... indexes){
         for (int index : indexes) {
             list.add(new VarInsnNode(opcode,index));
         }
+        return this;
     }
-    public void loadVarsInRange(int opcode,int begin,int end){
+    public InstructionList loadVarsInRange(int opcode,int begin,int end){
         for (int index =begin;index<end;++index) {
             list.add(new VarInsnNode(opcode,index));
         }
+        return this;
     }
     /**
      * Appends an 'ALOAD 0' instruction(load "this" reference)
      */
-    public void loadThis() {
+    public InstructionList loadThis() {
         list.add(new VarInsnNode(Opcodes.ALOAD, 0));
+        return this;
     }
-    public void swap(){
+    public InstructionList swap(){
         list.add(new InsnNode(Opcodes.SWAP));
+        return this;
     }
-
-    public void storeA(int index){
+    public InstructionList store(int index){
+        list.add(new VarInsnNode(CoreModCore.doTypeOffset(Opcodes.ISTORE,Objects.requireNonNull(asm).node.localVariables.get(index).desc),index));
+        return this;
+    }
+    public InstructionList storeA(int index){
         list.add(new VarInsnNode(Opcodes.ASTORE, index));
+        return this;
     }
-    public void storeI(int index){
+    public InstructionList storeI(int index){
         list.add(new VarInsnNode(Opcodes.ISTORE, index));
+        return this;
     }
     /**
      * Appends an ACONST_NULL instruction.
      */
-    public void constantNull() {
+    public InstructionList constantNull() {
         list.add(new InsnNode(Opcodes.ACONST_NULL));
+        return this;
     }
     /**
      * Appends an ICONST_0 or ICONST_1 instruction based on the boolean value.
      * @param flag The boolean value to push (true -> ICONST_1, false -> ICONST_0).
      */
-    public void constant(boolean flag) {
+    public InstructionList constant(boolean flag) {
         list.add(new InsnNode(flag?Opcodes.ICONST_1:Opcodes.ICONST_0));
+        return this;
     }
     /**
      * Appends a constant instruction for the given integer value, optimizing for
      * dconst_N, or ldc as appropriate.
      * @param value The double value to push.
      */
-    public void constant(double value) {
+    public InstructionList constant(double value) {
         if (value == 0)
             list.add(new InsnNode(Opcodes.DCONST_0));
         else if (value == 1)
             list.add(new InsnNode(Opcodes.DCONST_1));
         else list.add(new LdcInsnNode(value));
+        return this;
     }
     /**
      * Appends a constant instruction for the given integer value, optimizing for
      * fconst_N, or ldc as appropriate.
      * @param value The float value to push.
      */
-    public void constant(float value) {
+    public InstructionList constant(float value) {
         if (value == 0)
             list.add(new InsnNode(Opcodes.FCONST_0));
         else if (value == 1)
             list.add(new InsnNode(Opcodes.FCONST_1));
         else list.add(new LdcInsnNode(value));
+        return this;
     }
     /**
      * Appends a constant instruction for the given integer value, optimizing for
      * lconst_N, or ldc as appropriate.
      * @param value The long value to push.
      */
-    public void constant(long value) {
+    public InstructionList constant(long value) {
         if (value == 0)
             list.add(new InsnNode(Opcodes.LCONST_0));
         else if (value == 1)
             list.add(new InsnNode(Opcodes.LCONST_1));
         else list.add(new LdcInsnNode(value));
+        return this;
     }
     /**
      * Appends a constant instruction for the given integer value, optimizing for
      * iconst, bipush, sipush, or ldc as appropriate.
      * @param value The integer value to push.
      */
-    public void constant(int value) {
+    public InstructionList constant(int value) {
         if (value >= -1 && value <= 5)
             list.add(new InsnNode(Opcodes.ICONST_0 + value));
         else if (value >= Byte.MIN_VALUE && value <= Byte.MAX_VALUE) list.add(new IntInsnNode(Opcodes.BIPUSH, value));
         else if (value >= Short.MIN_VALUE && value <= Short.MAX_VALUE) list.add(new IntInsnNode(Opcodes.SIPUSH, value));
         else list.add(new LdcInsnNode(value));
+        return this;
     }
     /**
      * Appends a ldc instruction for the given String value.
      * @param str The string value to push.
      */
-    public void constant(String str) {
+    public InstructionList constant(String str) {
         list.add(new LdcInsnNode(str));
+        return this;
     }
-    public void jumpTo(LabelNode label){
+    public InstructionList jumpTo(LabelNode label){
         list.add(new JumpInsnNode(Opcodes.GOTO,label));
+        return this;
     }
-    public void jumpIf0(LabelNode label){
+    public InstructionList jumpIf0(LabelNode label){
         list.add(new JumpInsnNode(Opcodes.IFEQ,label));
+        return this;
     }
-    public void jumpIfNot0(LabelNode label){
+    public InstructionList jumpIfNot0(LabelNode label){
         list.add(new JumpInsnNode(Opcodes.IFNE,label));
+        return this;
     }
-    public void jumpIfNull(LabelNode label){
+    public InstructionList jumpIfNull(LabelNode label){
         list.add(new JumpInsnNode(Opcodes.IFNULL,label));
+        return this;
     }
-    public void jumpIfNonNull(LabelNode label){
+    public InstructionList jumpIfNonNull(LabelNode label){
         list.add(new JumpInsnNode(Opcodes.IFNONNULL,label));
+        return this;
     }
-    public void doJump(int opcode,LabelNode label){
+    public InstructionList doJump(int opcode,LabelNode label){
         list.add(new JumpInsnNode(opcode,label));
+        return this;
+    }
+    public InstructionList doJump(int opcode,Runnable whenNotJumped){
+        LabelNode label = new LabelNode();
+        this.add(new JumpInsnNode(opcode, label));
+        whenNotJumped.run();
+        this.add(label);
+        return this;
+    }
+    public InstructionList doJump(int opcode, Consumer<InstructionList> whenNotJumped){
+        LabelNode label = new LabelNode();
+        this.add(new JumpInsnNode(opcode, label));
+        whenNotJumped.accept(this);
+        this.add(label);
+        return this;
     }
     public LabelNode jumpIf0(){
         LabelNode label=new LabelNode();
@@ -205,20 +270,8 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
         list.add(label);
         return label;
     }
-    public void returnV(){
-        list.add(new InsnNode(Opcodes.RETURN));
-    }
-    public void returnI(){
-        list.add(new InsnNode(Opcodes.IRETURN));
-    }
-    public void returnD(){
-        list.add(new InsnNode(Opcodes.DRETURN));
-    }
-    public void returnL(){
-        list.add(new InsnNode(Opcodes.LRETURN));
-    }
-    public void returnA(){
-        list.add(new InsnNode(Opcodes.ARETURN));
+    public void returns(){
+        list.add(new InsnNode(CoreModCore.doTypeOffset(Opcodes.IRETURN,Objects.requireNonNull(asm).returnType())));
     }
     /**
      * Add instructions let it return 0,also known as false.
@@ -234,63 +287,93 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
         list.add(new InsnNode(Opcodes.ICONST_1));
         list.add(new InsnNode(Opcodes.IRETURN));
     }
-    public void staticVar(String className,String name,String description){
-        list.add(new FieldInsnNode(Opcodes.GETSTATIC, className, name, description));
+
+    /**
+     * Load a static variable.
+     * @param className the class name this static variable in
+     * @param name the name of this static variable
+     * @param descriptor field descriptioin
+     * @return this reference
+     */
+    public InstructionList staticVar(String className,String name,String descriptor){
+        list.add(new FieldInsnNode(Opcodes.GETSTATIC, className, name, descriptor));
+        return this;
     }
-    public void setStaticVar(String className,String name,String description){
-        list.add(new FieldInsnNode(Opcodes.PUTSTATIC, className, name, description));
+    public InstructionList setStaticVar(String className,String name,String descriptor){
+        list.add(new FieldInsnNode(Opcodes.PUTSTATIC, className, name, descriptor));
+        return this;
     }
-    public void configFlag(String name){
+    public InstructionList configFlag(String name){
         list.add(new FieldInsnNode(Opcodes.GETSTATIC, "com/sing/astatine/Configuration", name, "Z"));
+        return this;
     }
-    public void configInt(String name){
+    public InstructionList configInt(String name){
         list.add(new FieldInsnNode(Opcodes.GETSTATIC, "com/sing/astatine/Configuration", name, "I"));
+        return this;
     }
-    public void field(String owner,String name,String desc){
+    public InstructionList configValue(String name,String desc){
+        list.add(new FieldInsnNode(Opcodes.GETSTATIC, "com/sing/astatine/Configuration", name, desc));
+        return this;
+    }
+    public InstructionList field(String owner,String name,String desc){
         list.add(new FieldInsnNode(Opcodes.GETFIELD,owner,name,desc));
+        return this;
     }
-    public void setField(String owner,String name,String desc){
+    public InstructionList setField(String owner,String name,String desc){
         list.add(new FieldInsnNode(Opcodes.PUTFIELD,owner,name,desc));
+        return this;
     }
-    public void pop(){
+    public InstructionList pop(){
         list.add(new InsnNode(Opcodes.POP));
+        return this;
     }
-    public void invokeStatic(String owner,String name,String desc){
+    public InstructionList invokeStatic(String owner,String name,String desc){
         list.add(new MethodInsnNode(Opcodes.INVOKESTATIC, owner, name, desc, false));
+        return this;
     }
-    public void getFieldThis(String owner, String name, String desc){
+    public InstructionList getFieldThis(String owner, String name, String desc){
         list.add(new VarInsnNode(Opcodes.ALOAD,0));
         list.add(new FieldInsnNode(Opcodes.GETFIELD,owner,name,desc));
+        return this;
     }
-    public void invokeVirtual(String owner,String name,String desc){
+    public InstructionList invokeVirtual(String owner,String name,String desc){
         list.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL,owner,name,desc,false));
+        return this;
     }
-    public void invokeInterface(String owner,String name,String desc){
+    public InstructionList invokeInterface(String owner,String name,String desc){
         list.add(new MethodInsnNode(Opcodes.INVOKEINTERFACE,owner,name,desc,true));
+        return this;
     }
-    public void invokeVirtualThis(String owner,String name,String desc){
+    public InstructionList invokeVirtualThis(String owner,String name,String desc){
         list.add(new VarInsnNode(Opcodes.ALOAD,0));
         list.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL,owner,name,desc,false));
+        return this;
     }
-    public void dupe(){
+    public InstructionList dupe(){
         list.add(new InsnNode(Opcodes.DUP));
+        return this;
     }
-    public void invokeSpecial(String owner,String name,String desc){
+    public InstructionList invokeSpecial(String owner,String name,String desc){
         list.add(new MethodInsnNode(Opcodes.INVOKESPECIAL,owner,name,desc,false));
+        return this;
     }
-    public void construct(String owner){
+    public InstructionList construct(String owner){
         list.add(new MethodInsnNode(Opcodes.INVOKESPECIAL,owner,"<init>","()V",false));
+        return this;
     }
-    public void allocNew(String type){
+    public InstructionList allocNew(String type){
         list.add(new TypeInsnNode(Opcodes.NEW,type));
+        return this;
     }
-    public void allocNewAndDupe(String type){
+    public InstructionList allocNewAndDupe(String type){
         list.add(new TypeInsnNode(Opcodes.NEW,type));
         list.add(new InsnNode(Opcodes.DUP));
+        return this;
     }
 
-    public void add(int opcode){
+    public InstructionList add(int opcode){
         list.add(new InsnNode(opcode));
+        return this;
     }
     @Override
     public int size() {
@@ -444,6 +527,25 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     public AbstractInsnNode last() {
         return list.getLast();
     }
+    public void replaceType(String from,String to){
+        for (AbstractInsnNode node : this) {
+            if (node instanceof TypeInsnNode) {
+                final TypeInsnNode insn = (TypeInsnNode) node;
+                if (insn.desc.equals(from))
+                    insn.desc = to;
+            } else if (node instanceof MethodInsnNode) {
+                final MethodInsnNode insn = (MethodInsnNode) node;
+                if (insn.owner.equals(from))
+                    insn.owner = to;
+            }else if(node instanceof FieldInsnNode){
+                final FieldInsnNode insn = (FieldInsnNode) node;
+                if (insn.owner.equals(from))
+                    insn.owner = to;
+                if(insn.desc.equals("L"+from+";"))
+                    insn.desc="L"+to+";";
+            }
+        }
+    }
     public void replace(INodeMatcher<?> matcher, AbstractInsnNode newNode) {
         for (AbstractInsnNode node : this) {
             if (matcher.match(node)) list.set(node, newNode);
@@ -488,8 +590,8 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     public void insert(int location,InstructionList instructionList){
         list.insert(list.get(location),instructionList.list);
     }
-    public void insertAfterHead(InstructionList instructionList){
-        list.insert(find(INodeMatcher.labels()),instructionList.list);
+    public void insertHead(InstructionList instructionList){
+        list.insert(list.getFirst(),instructionList.list);
     }
     public <T extends AbstractInsnNode> T find(INodeMatcher<T> matcher){
         return find(matcher,0);

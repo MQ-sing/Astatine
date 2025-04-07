@@ -1,6 +1,8 @@
 package com.sing.astatine.core;
 
-import net.minecraftforge.fml.common.asm.transformers.deobf.FMLDeobfuscatingRemapper;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import org.jetbrains.annotations.NotNull;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
@@ -8,6 +10,9 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.spongepowered.asm.transformers.MixinClassWriter;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class ClassASM {
     public final ClassNode node=new ClassNode();
@@ -19,6 +24,13 @@ public class ClassASM {
         asm.reader=cr;
         return asm;
     }
+    public List<MethodASM> allConstructors(){
+        List<MethodASM> list=new ArrayList<>();
+        for (MethodNode method : node.methods) {
+            if(method.name.equals("<init>"))list.add(new MethodASM(method));
+        }
+        return list;
+    }
     public MethodASM constructor(String desc){
         for (MethodNode method : node.methods) {
             if(method.name.equals("<init>") && (desc==null || method.desc.equals(desc)))return new MethodASM(method);
@@ -28,15 +40,30 @@ public class ClassASM {
 
     public MethodASM staticBlock(){
         for (MethodNode method : node.methods) {
-            if( FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(node.name,method.name,method.desc).equals("<clinit>"))return new MethodASM(method);
+            if(method.name.equals("<clinit>"))return new MethodASM(method);
         }
         throw new IllegalStateException("Class without static blocks");
     }
     public MethodASM methodByName(String name){
         for (MethodNode method : node.methods) {
-            if( FMLDeobfuscatingRemapper.INSTANCE.mapMethodName(node.name,method.name,method.desc).equals(name))return new MethodASM(method);
+            if(method.name.equals(name))return new MethodASM(method);
         }
         return null;
+    }
+    @NotNull
+    public ImmutableMap<String,MethodASM> methods(){
+        final ImmutableMap.Builder<String, MethodASM> builder = ImmutableMap.builder();
+        for (MethodNode method : node.methods) {
+            builder.put(method.name,new MethodASM(method));
+        }
+        return builder.build();
+    }
+    public ImmutableList<MethodASM> methodList(){
+        final ImmutableList.Builder<MethodASM> builder = ImmutableList.builder();
+        for (MethodNode method : node.methods) {
+            builder.add(new MethodASM(method));
+        }
+        return builder.build();
     }
     public MethodASM methodByName(String srg,String deobfuscated){
         return methodByName(CoreModCore.isRuntimeDeobfuscated ? deobfuscated : srg);
@@ -45,6 +72,9 @@ public class ClassASM {
         final MethodNode node = new MethodNode(access, name, desc, null, null);
         this.node.methods.add(node);
         return new MethodASM(node);
+    }
+    public MethodASM addMethod(String name,String desc){
+        return addMethod(name,desc,Opcodes.ACC_PUBLIC);
     }
     public byte[] toBytes(){
         return toBytes(true);
@@ -61,8 +91,14 @@ public class ClassASM {
     public String name(){
         return node.name;
     }
-    public String field(String name,String desc,Object value){
+    public String addField(String name, String desc, Object value){
         node.fields.add(new FieldNode(Opcodes.ACC_PUBLIC,name,desc,null,value));
         return name;
+    }
+    public FieldNode fieldByName(String name){
+        for (FieldNode field : node.fields) {
+            if(field.name.equals(name))return field;
+        }
+        return null;
     }
 }
