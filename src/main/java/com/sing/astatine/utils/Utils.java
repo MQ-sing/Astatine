@@ -21,13 +21,15 @@ public class Utils {
         int length = input.length();
         for (int last=0;;last=i,i=input.indexOf('%',i)) {
             if(i==-1){
-                result.append(input, last, input.length());
+                if(last<input.length())
+                    result.append(input, last, input.length());
                 break;
             }
             result.append(input, last, i).append('%');
             if (++i >= length) break;
             char current=input.charAt(i);
             if(current == '%'){
+                result.append('%');
                 ++i;
                 continue;
             }
