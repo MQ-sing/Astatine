@@ -24,12 +24,12 @@ public class Utils {
                 result.append(input, last, input.length());
                 break;
             }
-            result.append(input, last, i);
-            result.append('%');
+            result.append(input, last, i).append('%');
             if (++i >= length) break;
             char current=input.charAt(i);
             if(current == '%'){
-                ++i;continue;
+                ++i;
+                continue;
             }
             // most cases
             if (isConversionChar(current)) {
