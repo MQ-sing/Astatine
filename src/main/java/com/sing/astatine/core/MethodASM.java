@@ -3,6 +3,8 @@ package com.sing.astatine.core;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 
+import java.util.function.Consumer;
+
 public class MethodASM {
     public MethodNode node;
 
@@ -11,6 +13,20 @@ public class MethodASM {
     }
     public InstructionList instructions(){
         return InstructionList.fromMethod(this);
+    }
+    public InstructionList overwrite(Consumer<InstructionList> newContent,String... globalLocalsDesc){
+        final LabelNode firstLabel=new LabelNode();
+        final LabelNode lastLabel = new LabelNode();
+        int i=0;
+        for (String desc : globalLocalsDesc) {
+            local("_"+(i++),desc,firstLabel,lastLabel);
+        }
+        final InstructionList list = createList();
+        newContent.accept(list);
+        list.add(0,firstLabel);
+        list.add(lastLabel);
+        node.instructions=list.list;
+        return list;
     }
     public InstructionList createList(){
         return new InstructionList().bind(this);
@@ -34,10 +50,7 @@ public class MethodASM {
         node.instructions.add(new InsnNode(Opcodes.ARETURN));
     }
     public void breaks(boolean value){
-        final InstructionList list = new InstructionList();
-        list.constant(value);
-        list.returns();
-        instructions().insertHead(list);
+        node.instructions=createList().constant(value).returns().list;
     }
     public int local(String name, String desc, LabelNode start,LabelNode end){
         final int index = node.localVariables.size();

@@ -93,7 +93,8 @@ The configuration file would be generated with complete comments and default val
 - Rewrite weather particles(rain/snow).*I don't know what it should be actually*
 - Migrate current configuration system to the [ConfigAnyTime Mod](https://www.mcmod.cn/class/11060.html) which support runtime configuration modifying and visual config screen.*Incompatible with current configuration file syntax.*  
 
-*These features are in development or ready to implement.May be ill-considered.*
+*These features are in development but ready to use.May cause some problems.*
 - Remove the stats system completely.*May invalidates advancement system.*
-- Save chunks that has enough `inhabitTime` instead of saving them all after unload.*Conflicts with vanilla's village generating.It seems that seeds would affect the villages' location but not their struct.Unsaved chunks would be regenerated when close to them again,but Minecraft will generate a different struct for the same village.*
-- Some misc optimization(e.g. replace `HashSet<Long>` with `LongOpenHashSet`),tuck them all into miscOptimization options.
+- Save chunks that player has reached instead of saving them all after unloading.Conflicts with vanilla's village generating.
+- Try to implement a bit of [Lithium](https://github.com/CaffeineMC/lithium) features:
+  - Faster data collections&algorithms.(e.g. replace `HashSet<Long>` with `LongOpenHashSet`)

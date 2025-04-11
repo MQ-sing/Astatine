@@ -223,7 +223,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                     methods.get(CoreModCore.mayDeobfuscated("func_188058_e", "getDroppedObjectStats")).breaksNull();
                 }, "net.minecraft.stats.StatList");
             }
-            if (Configuration.miscOptimization) {
+            if (Configuration.Misc.collections) {
                 // What a beautiful shit!
                 // Till today, I have never seen a hash map that doesn't implement the Map interface.But mojang made it.
                 processors.register(asm -> {
@@ -283,6 +283,57 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                 processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashSet"), InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/ObjectOpenHashSet")), "net.minecraft.entity.Entity");
                 processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashMap"), InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/Reference2ReferenceOpenHashMap")), "net.minecraft.util.ClassInheritanceMultiMap");
                 processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashMap"), InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/Object2ObjectOpenHashMap")), "net.minecraft.world.chunk.Chunk");
+                // This optimization are from Lithium mod by JellySquid.
+                processors.register(asm -> {
+                            String VALUES = CoreModCore.mayDeobfuscated("field_82609_l", "VALUES");
+                            //Avoid the modulo/abs operations
+                            asm.methodByName("func_176734_d", "getOpposite").overwrite(
+                                    list -> list
+                                            .staticVar(asm.name(), VALUES, "[Lnet/minecraft/util/EnumFacing;")
+                                            .getFieldThis(asm.name(), CoreModCore.mayDeobfuscated("field_176759_h", "opposite"), "I")
+                                            .add(Opcodes.AALOAD)
+                                            .returns());
+                            //Do not allocate an excessive number of Direction arrays
+                            asm.methodByName("func_176741_a", "random").overwrite(
+                                    list -> list
+                                            .staticVar(asm.name(), VALUES, "[Lnet/minecraft/util/EnumFacing;")
+                                            .dupe()
+                                            .add(Opcodes.ARRAYLENGTH)
+                                            .load(0)
+                                            .swap()
+                                            .invokeVirtual("java/util/Random", "nextInt", "(I)I")
+                                            .add(Opcodes.AALOAD)
+                                            .returns()
+                            );
+                        }
+                        , "net.minecraft.util.EnumFacing");
+
+                //Avoid expensive hashmap lookup
+                processors.register(asm -> {
+                    asm.staticBlock().instructions().replace(INodeMatcher.invokes("newHashMap"), new InsnNode(Opcodes.ACONST_NULL));
+                    asm.methodByName("func_176717_a", "byName").overwrite(
+                            list -> list.load(0)
+                                    .doJump(Opcodes.IFNONNULL, InstructionList::returnNull)
+                                    .load(0)
+                                    .invokeVirtual("java/lang/String", "length", "()I")
+                                    .constant(1)
+                                    .doJump(Opcodes.IF_ICMPEQ, InstructionList::returnNull)
+                                    .load(0)
+                                    .constant(0)
+                                    .invokeVirtual("java/lang/String", "charAt", "(I)C")
+                                    .dupe()
+                                    .store(1)
+                                    .constant('x')
+                                    .doJump(Opcodes.IF_ICMPNE, x -> x.staticVar(asm.name(), "X", "Lnet/minecraft/util/EnumFacing$Axis;").returns())
+                                    .load(1)
+                                    .constant('y')
+                                    .doJump(Opcodes.IF_ICMPNE, x -> x.staticVar(asm.name(), "Y", "Lnet/minecraft/util/EnumFacing$Axis;").returns())
+                                    .load(1)
+                                    .constant('z')
+                                    .doJump(Opcodes.IF_ICMPNE, x -> x.staticVar(asm.name(), "Z", "Lnet/minecraft/util/EnumFacing$Axis;").returns())
+                                    .returnNull(), "I"
+                    );
+                }, "net.minecraft.util.EnumFacing$Axis");
             }
             if (Configuration.disableStats) {
                 processors.register(asm -> asm.methodByName("func_75971_g", "registerStat").breaksThis(), "net.minecraft.stats.StatBasic", "net.minecraft.stats.StatBase");
@@ -328,19 +379,34 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                 }, "net.minecraft.entity.projectile.EntityThrowable");
             }
             if (Configuration.LazyChunkSaving.enabled) {
+                processors.register(asm -> asm.addField("playerStayed","Z",0), "net.minecraft.world.chunk.Chunk");
+                processors.register(asm->{
+                    final MethodASM method = asm.methodByName("func_70071_h_", "onUpdate");
+                    method.insertAtHead(method.createList()
+                            .getFieldThis(asm.name(),CoreModCore.mayDeobfuscated("field_70170_p","world"),"Lnet/minecraft/world/World;")
+                            .getFieldThis(asm.name(),CoreModCore.mayDeobfuscated("field_70176_ah","chunkCoordX"),"I")
+                            .getFieldThis(asm.name(),CoreModCore.mayDeobfuscated("field_70164_aj","chunkCoordZ"),"I")
+                            .invokeVirtual("net/minecraft/world/World",CoreModCore.mayDeobfuscated("func_72964_e","getChunk"),"(II)Lnet/minecraft/world/chunk/Chunk;")
+                            .constant(true)
+                            .setField("net/minecraft/world/chunk/Chunk","playerStayed","Z")
+                    );
+                },"net.minecraft.entity.player.EntityPlayerMP");
                 processors.register(asm -> {
                     final MethodASM method = asm.methodByName("func_75816_a", "saveChunk");
                     method.insertAtHead(method.createList()
                             .load(2)
-                            .invokeVirtual("net/minecraft/world/chunk/Chunk", CoreModCore.mayDeobfuscated("func_177416_w", "getInhabitedTime"), "()J")
-                            .staticVar("com/sing/astatine/Configuration$LazyChunkSaving", "minimumInhabitedTime", "J")
-                            .add(Opcodes.LCMP)
-                            .constant(1)
-                            .doJump(Opcodes.IF_ICMPEQ,
-                                    InstructionList::returns
-                            )
+                            .field("net/minecraft/world/chunk/Chunk","playerStayed", "Z")
+                            .doJump(Opcodes.IFNE, InstructionList::returns)
                     );
                 }, "net.minecraft.world.chunk.storage.AnvilChunkLoader");
+                // Fix a village generation bug
+                processors.register(asm->{
+//                    final MethodASM method = asm.methodByName("func_180701_a", "recursiveGenerate");
+//                    final InstructionList instructions = method.instructions();
+//                    final MethodInsnNode node = instructions.find(INodeMatcher.invokes("put"));
+//                    instructions.insert(node,method.createList().load(2,3));
+                },"net.minecraft.world.gen.structure.MapGenStructure");
+
             }
             if (Configuration.Random.fastRandom) {
                 processors.register(asm -> processFastRandom(Collections.singletonList(asm.staticBlock())),
@@ -386,6 +452,8 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                         consumer.process(asm);
                     } catch (Exception e) {
                         LOGGER.error("[Astatine] Unable to load coremod when transforming class '{}'!", transformedName, e);
+                        if (Configuration.debug) System.exit(-1);
+                        else return basicClass;
                     }
                 }
                 return asm.toBytes();

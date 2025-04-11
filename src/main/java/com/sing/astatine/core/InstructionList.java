@@ -270,8 +270,9 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
         list.add(label);
         return label;
     }
-    public void returns(){
+    public InstructionList returns(){
         list.add(new InsnNode(CoreModCore.doTypeOffset(Opcodes.IRETURN,Objects.requireNonNull(asm).returnType())));
+        return this;
     }
     /**
      * Add instructions let it return 0,also known as false.
@@ -286,6 +287,10 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     public void return1(){
         list.add(new InsnNode(Opcodes.ICONST_1));
         list.add(new InsnNode(Opcodes.IRETURN));
+    }
+    public void returnNull(){
+        list.add(new InsnNode(Opcodes.ACONST_NULL));
+        list.add(new InsnNode(Opcodes.ARETURN));
     }
 
     /**

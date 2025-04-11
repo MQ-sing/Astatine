@@ -27,15 +27,22 @@ public class Configuration {
     })
     public static int projectileRenderDelay=2;
     @ConfigComment({
-            "Some misc optimization that is not so effective."
+            "Crash when an error happens"
     })
-    public static boolean miscOptimization=false;
+    public static boolean debug=false;
     @Hidden
     @ConfigComment({
             "Force not to calculate the world brightness while rendering weather particles.",
             "That could avoid reading block information.",
             "-1 for Vanilla behavior"})
     public static boolean forceWeatherParticleUseConstLight = false;
+    @Group("misc")
+    public static class Misc{
+        @ConfigComment({
+                "Replace some collection/algorithm with faster version,just like the Lithium mod do."
+        })
+        public static boolean collections=true;
+    }
     @Group("lang")
     public static class Lang {
         @ConfigComment("Forces ASCII font rendering for all text elements, " +
@@ -195,16 +202,14 @@ public class Configuration {
         public static float timeAttenuation = 1;
     }
     @Experimental
+    // TODO:Terrible bug in large structures(e.g. villages)
+    @Hidden
     @Group("lazy_saving")
-    @ConfigComment({"Only save chunks if their inhabited time greater than a value.",
+    @ConfigComment({"Only save chunks that player have actually stayed in",
     "This means chunks that players never reach would never be saved in disk/memory",
-    "Chunks that has been stayed at by players for enough time would be saved.",
     "It is advised to use this feature with ChunkCache option,",
     "Then chunks that be loaded for enough time will be cached in memory,and game need not generate them again."})
     public static class LazyChunkSaving{
         public static boolean enabled=false;
-        @SuppressWarnings("unused")
-        @ConfigComment({"How long the player stay will trigger saving, in ticks"})
-        public static long minimumInhabitedTime=0;
     }
 }
