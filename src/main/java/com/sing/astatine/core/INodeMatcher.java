@@ -1,6 +1,5 @@
 package com.sing.astatine.core;
 
-import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 
 @FunctionalInterface
@@ -16,13 +15,17 @@ public interface INodeMatcher<T extends AbstractInsnNode> {
         return RETURN_MATCHER;
     }
     static INodeMatcher<MethodInsnNode> invokes(String name) {
-        return invokes(name, Opcodes.INVOKEVIRTUAL);
+        return invokes(name, -1);
     }
     static INodeMatcher<MethodInsnNode> opcode(int opcode) {
         return node -> node.getOpcode() == opcode;
     }
     static INodeMatcher<MethodInsnNode> invokes(String name, int opcode) {
+        if(opcode==-1)return node->(node instanceof MethodInsnNode) && ((MethodInsnNode) node).name.equals(name);
         return node -> (node instanceof MethodInsnNode) && node.getOpcode() == opcode && ((MethodInsnNode) node).name.equals(name);
+    }
+    static INodeMatcher<FieldInsnNode> fields(String name){
+        return node->(node instanceof FieldInsnNode)&&((FieldInsnNode) node).name.equals(name);
     }
 
     static INodeMatcher<LdcInsnNode> ldc(Object value) {

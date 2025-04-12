@@ -8,6 +8,7 @@ import org.objectweb.asm.tree.*;
 import javax.annotation.Nonnull;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 @SuppressWarnings("unused")
 public class InstructionList implements List<AbstractInsnNode>, Iterable<AbstractInsnNode>, RandomAccess {
@@ -35,7 +36,7 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
         list = new InsnList();
     }
     public static InstructionList constructWithNoArgs(String name){
-        return new InstructionList().allocNew(name).construct(name);
+        return new InstructionList().allocNewAndDupe(name).construct(name);
     }
     public InstructionList load(int index){
         list.add(new VarInsnNode(CoreModCore.doTypeOffset(Opcodes.ILOAD,Objects.requireNonNull(asm).node.localVariables.get(index).desc),index));
@@ -198,26 +199,6 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
         list.add(new LdcInsnNode(str));
         return this;
     }
-    public InstructionList jumpTo(LabelNode label){
-        list.add(new JumpInsnNode(Opcodes.GOTO,label));
-        return this;
-    }
-    public InstructionList jumpIf0(LabelNode label){
-        list.add(new JumpInsnNode(Opcodes.IFEQ,label));
-        return this;
-    }
-    public InstructionList jumpIfNot0(LabelNode label){
-        list.add(new JumpInsnNode(Opcodes.IFNE,label));
-        return this;
-    }
-    public InstructionList jumpIfNull(LabelNode label){
-        list.add(new JumpInsnNode(Opcodes.IFNULL,label));
-        return this;
-    }
-    public InstructionList jumpIfNonNull(LabelNode label){
-        list.add(new JumpInsnNode(Opcodes.IFNONNULL,label));
-        return this;
-    }
     public InstructionList doJump(int opcode,LabelNode label){
         list.add(new JumpInsnNode(opcode,label));
         return this;
@@ -332,6 +313,10 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
         list.add(new InsnNode(Opcodes.POP));
         return this;
     }
+    public InstructionList pop2(){
+        list.add(new InsnNode(Opcodes.POP2));
+        return this;
+    }
     public InstructionList invokeStatic(String owner,String name,String desc){
         list.add(new MethodInsnNode(Opcodes.INVOKESTATIC, owner, name, desc, false));
         return this;
@@ -364,6 +349,10 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     }
     public InstructionList construct(String owner){
         list.add(new MethodInsnNode(Opcodes.INVOKESPECIAL,owner,"<init>","()V",false));
+        return this;
+    }
+    public InstructionList construct(String owner,String desc){
+        list.add(new MethodInsnNode(Opcodes.INVOKESPECIAL,owner,"<init>",desc,false));
         return this;
     }
     public InstructionList allocNew(String type){
@@ -426,6 +415,13 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     }
     public void remove(AbstractInsnNode o) {
         list.remove(o);
+    }
+    public void removeWithNext(AbstractInsnNode o,int count) {
+        while(count-->0) {
+            final AbstractInsnNode n=o.getNext();
+            list.remove(o);
+            o=n;
+        }
     }
     @Override
     public boolean containsAll(Collection<?> c) {
@@ -563,13 +559,27 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     public void replace(AbstractInsnNode node, AbstractInsnNode newNode) {
         list.set(node,newNode);
     }
-    public void replace(INodeMatcher<?> matcher, InstructionList newNodes) {
+    public void replace(INodeMatcher<?> matcher, Supplier<InstructionList> newNodes) {
+        boolean affected=false;
+        for (AbstractInsnNode node : this) {
+            if (matcher.match(node)) {
+                list.insert(node,newNodes.get().list);
+                list.remove(node);
+                affected=true;
+            }
+        }
+        if(!affected)
+            throw new IllegalStateException("Unable to replace");
+    }
+    public void replaceOnce(INodeMatcher<?> matcher, InstructionList newNodes) {
         for (AbstractInsnNode node : this) {
             if (matcher.match(node)) {
                 list.insert(node,newNodes.list);
                 list.remove(node);
+                return;
             }
         }
+        throw new IllegalStateException("Unable to replace");
     }
     public void redirect(String targetOwner,String targetName,String targetDesc,String newOwner,String newName,String newDesc,int code){
         for (AbstractInsnNode node : this) {
@@ -597,6 +607,9 @@ public class InstructionList implements List<AbstractInsnNode>, Iterable<Abstrac
     }
     public void insertHead(InstructionList instructionList){
         list.insert(list.getFirst(),instructionList.list);
+    }
+    public void insertBeforeReturnUnique(InstructionList instructionList){
+        list.insertBefore(find(node->node.getOpcode() >= Opcodes.IRETURN && node.getOpcode() <= Opcodes.RETURN),instructionList.list);
     }
     public <T extends AbstractInsnNode> T find(INodeMatcher<T> matcher){
         return find(matcher,0);

@@ -1,9 +1,11 @@
 package com.sing.astatine.core;
 
+import it.unimi.dsi.fastutil.ints.AbstractInt2ObjectMap;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class MethodASM {
     public MethodNode node;
@@ -14,12 +16,12 @@ public class MethodASM {
     public InstructionList instructions(){
         return InstructionList.fromMethod(this);
     }
-    public InstructionList overwrite(Consumer<InstructionList> newContent,String... globalLocalsDesc){
+    @SafeVarargs
+    public final InstructionList overwrite(Consumer<InstructionList> newContent, AbstractInt2ObjectMap.BasicEntry<String>... entries){
         final LabelNode firstLabel=new LabelNode();
         final LabelNode lastLabel = new LabelNode();
-        int i=0;
-        for (String desc : globalLocalsDesc) {
-            local("_"+(i++),desc,firstLabel,lastLabel);
+        for (AbstractInt2ObjectMap.BasicEntry<String> desc : entries) {
+            node.localVariables.add(new LocalVariableNode("_"+desc.getIntKey(), desc.getValue(), null,firstLabel,lastLabel,desc.getIntKey()));
         }
         final InstructionList list = createList();
         newContent.accept(list);
@@ -64,10 +66,15 @@ public class MethodASM {
         }
         return returnType;
     }
-    public void replace(INodeMatcher<?> matcher, InstructionList newNodes) {
+    public void replace(INodeMatcher<?> matcher, Supplier<InstructionList> newNodes) {
         instructions().replace(matcher,newNodes);
     }
     public void insertAtHead(InstructionList list){
+        node.instructions.insert(node.instructions.getFirst(),list.list);
+    }
+    public void insertAtHead(Consumer<InstructionList> f){
+        final InstructionList list = createList();
+        f.accept(list);
         node.instructions.insert(node.instructions.getFirst(),list.list);
     }
 }

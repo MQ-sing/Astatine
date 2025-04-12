@@ -1,0 +1,14 @@
+{
+  "package": "com.sing.astatine.mixin.misc",
+  "required": true,
+  "refmap": "mixins.astatine.refmap.json",
+  "target": "@env(DEFAULT)",
+  "minVersion": "0.8.5",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+    "MixinBlockPos"
+  ],
+  "server": [],
+  "client": [
+  ]
+}

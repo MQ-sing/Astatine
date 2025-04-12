@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import com.sing.astatine.Configuration;
 import com.sing.astatine.utils.Utils;
 import com.sing.astatine.utils.config.ConfigurationLoader;
+import it.unimi.dsi.fastutil.ints.AbstractInt2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
@@ -82,6 +83,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
         mixinIf(mixins, "mixins.star_twinkling.json", Configuration.StarTwinkling.enabled);
         mixinIf(mixins, "mixins.weather.json", Configuration.forceWeatherParticleUseConstLight);
         mixinIf(mixins, "mixins.renderskip.json", Configuration.maxEntityRenderDistance != -1 || Configuration.maxTileEntityRenderDistance != -1);
+        mixinIf(mixins, "mixins.misc.json", Configuration.Misc.collections);
         if (Configuration.ChunkCache.enabled) {
             if (Configuration.ChunkCache.maxCacheSize < 16)
                 throw new IllegalStateException("maxCacheSize must greater than 16");
@@ -132,7 +134,7 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                             .store(isCreative);
                     InstructionList shrinkCheck = method.createList();
                     shrinkCheck.load(isCreative)
-                            .jumpIfNot0(instructions.findLastNth(INodeMatcher.labels(), 1));
+                            .doJump(Opcodes.IFNE,instructions.findLastNth(INodeMatcher.labels(), 1));
                     instructions.insertBefore(instructions.find(node -> node.getOpcode() == Opcodes.ASTORE && ((VarInsnNode) node).var == 4), list);
                     instructions.insert(instructions.findLastNth(INodeMatcher.labels(), 2), shrinkCheck);
                 }, "net.minecraft.item.ItemFood");
@@ -277,12 +279,76 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                         method.instructions().replaceType("java/util/TreeMap", "it/unimi/dsi/fastutil/objects/Object2ObjectOpenHashMap");
                     }
                 }, "net.minecraft.world.GameRules");
-                processors.register(asm -> asm.methodByName("func_148740_a", "createUnderlyingMap").instructions().replace(INodeMatcher.invokes("newHashMap"), InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/Object2ObjectOpenHashMap")), "net.minecraft.client.audio.SoundRegistry", "net.minecraft.util.registry.RegistrySimple");
-                processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashSet"), InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/longs/LongOpenHashSet")), "net.minecraft.world.gen.ChunkProviderServer");
-                processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashSet"), InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/ReferenceOpenHashSet")), "net.minecraft.entity.ai.attributes.AttributeMap");
-                processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashSet"), InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/ObjectOpenHashSet")), "net.minecraft.entity.Entity");
-                processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashMap"), InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/Reference2ReferenceOpenHashMap")), "net.minecraft.util.ClassInheritanceMultiMap");
-                processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashMap"), InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/Object2ObjectOpenHashMap")), "net.minecraft.world.chunk.Chunk");
+                processors.register(asm -> asm.methodByName("func_148740_a", "createUnderlyingMap").replace(INodeMatcher.invokes("newHashMap"), ()->InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/Object2ObjectOpenHashMap")), "net.minecraft.client.audio.SoundRegistry", "net.minecraft.util.registry.RegistrySimple");
+                processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashSet"), ()->InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/longs/LongOpenHashSet")), "net.minecraft.world.gen.ChunkProviderServer");
+                processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashSet"), ()->InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/ReferenceOpenHashSet")), "net.minecraft.entity.ai.attributes.AttributeMap");
+                processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashMap"), ()->InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/Reference2ReferenceOpenHashMap")), "net.minecraft.util.ClassInheritanceMultiMap");
+                processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashSet"), ()->InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/ObjectOpenHashSet")),
+                        "net.minecraft.entity.Entity",
+                        "net.minecraft.client.renderer.RenderGlobal",
+                        "net.minecraft.client.multiplayer.WorldClient",
+                        "net.minecraft.inventory.Container");
+                processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashMap"), ()->InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/Object2ObjectOpenHashMap")),
+                        "net.minecraft.world.chunk.Chunk",
+                        "net.minecraft.nbt.NBTTagCompound",
+                        "net.minecraft.util.CooldownTracker",
+                        "net.minecraft.world.biome.Biome",
+                        "net.minecraft.world.WorldServer",
+                        "net.minecraft.world.Explosion",
+                        "net.minecraft.util.text.translation.LanguageMap",
+                        "net.minecraft.scoreboard.Scoreboard",
+                        "net.minecraft.block.state.pattern.BlockStateMatcher",
+                        "net.minecraft.block.properties.PropertyEnum"
+                );
+                processors.register(asm -> asm.constructor(null).replace(INodeMatcher.invokes("newHashMap"), ()->InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/ints/Int2ObjectOpenHashMap")), "net.minecraft.village.Village");
+                processors.register(asm -> {
+                            final InstructionList instructions = asm.constructor(null).instructions();
+                            instructions
+                                    .replaceOnce(INodeMatcher.invokes("newHashMap"), InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/Object2ObjectOpenHashMap"));
+                            instructions
+                                    .replaceOnce(INodeMatcher.invokes("newHashMap"), InstructionList.constructWithNoArgs("it/unimi/dsi/fastutil/objects/Object2IntOpenHashMap"));
+                            String mapTextureCounters = CoreModCore.mayDeobfuscated("field_110584_c", "mapTextureCounters");
+                            String desc = asm.fieldByName(mapTextureCounters).desc = "Lit/unimi/dsi/fastutil/objects/Object2IntOpenHashMap;";
+                            instructions.find(INodeMatcher.fields(mapTextureCounters)).desc = desc;
+                            String o2iMap = "it/unimi/dsi/fastutil/objects/Object2IntOpenHashMap";
+                            final MethodASM method = asm.methodByName("func_110578_a", "getDynamicTextureLocation");
+                            method.node.localVariables.clear();
+                            method.overwrite(list -> list
+                                            .loadThis()
+                                            .allocNewAndDupe("net/minecraft/util/ResourceLocation")
+                                            .allocNewAndDupe("java/lang/StringBuilder")
+                                            .constant("dynamic/")
+                                            .construct("java/lang/StringBuilder", "(Ljava/lang/String;)V")
+                                            .loadA(1)
+                                            .invokeVirtual("java/lang/StringBuilder", "append", "(Ljava/lang/String;)Ljava/lang/StringBuilder;")
+                                            .constant('_')
+                                            .invokeVirtual("java/lang/StringBuilder", "append", "(C)Ljava/lang/StringBuilder;")
+                                            .getFieldThis(asm.name(), mapTextureCounters, desc)
+                                            .loadA(1)
+                                            .getFieldThis(asm.name(), mapTextureCounters, desc)
+                                            .loadA(1)
+                                            .invokeVirtual(o2iMap, "getInt", "(Ljava/lang/Object;)I")
+                                            .constant(1)
+                                            .add(Opcodes.IADD)
+                                            .dupe()
+                                            .storeI(3)
+                                            .invokeVirtual(o2iMap, "put", "(Ljava/lang/Object;I)I")
+                                            .pop()
+                                            .loadI(3)
+                                            .invokeVirtual("java/lang/StringBuilder", "append", "(I)Ljava/lang/StringBuilder;")
+                                            .invokeVirtual("java/lang/StringBuilder", "toString", "()Ljava/lang/String;")
+                                            .construct("net/minecraft/util/ResourceLocation","(Ljava/lang/String;)V")
+                                            .dupe()
+                                            .storeA(4)
+                                            .loadA(2)
+                                            .invokeVirtual(asm.name(),CoreModCore.mayDeobfuscated("func_110579_a","loadTexture"),"(Lnet/minecraft/util/ResourceLocation;Lnet/minecraft/client/renderer/texture/ITextureObject;)Z")
+                                            .loadA(4)
+                                            .returns()
+                                    , new AbstractInt2ObjectMap.BasicEntry<>(3, "I")
+                            ,new AbstractInt2ObjectMap.BasicEntry<>(4,"Lnet/minecraft/util/ResourceLocation;"));
+                        }
+                        , "net.minecraft.client.renderer.texture.TextureManager"
+                );
                 // This optimization are from Lithium mod by JellySquid.
                 processors.register(asm -> {
                             String VALUES = CoreModCore.mayDeobfuscated("field_82609_l", "VALUES");
@@ -305,12 +371,40 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                                             .add(Opcodes.AALOAD)
                                             .returns()
                             );
+                            // Lithium feature #2: math/fast_blockpos/DirectionMixin.java
+                            asm.addField("offsetX", "I", 0);
+                            asm.addField("offsetY", "I", 0);
+                            asm.addField("offsetZ", "I", 0);
+                            asm.constructor(null).instructions().insertBeforeReturnUnique(new InstructionList()
+                                    .loadThis()
+                                    .loadA(9)
+                                    .invokeVirtual("net/minecraft/util/math/Vec3i", CoreModCore.mayDeobfuscated("func_177958_n", "getX"), "()I")
+                                    .setField("net/minecraft/util/EnumFacing", "offsetX", "I")
+                                    .loadThis()
+                                    .loadA(9)
+                                    .invokeVirtual("net/minecraft/util/math/Vec3i", CoreModCore.mayDeobfuscated("func_177956_o", "getY"), "()I")
+                                    .setField("net/minecraft/util/EnumFacing", "offsetY", "I")
+                                    .loadThis()
+                                    .loadA(9)
+                                    .invokeVirtual("net/minecraft/util/math/Vec3i", CoreModCore.mayDeobfuscated("func_177952_p", "getZ"), "()I")
+                                    .setField("net/minecraft/util/EnumFacing", "offsetZ", "I"));
+                            asm.methodByName("func_82601_c", "getXOffset").overwrite(i -> i.getFieldThis("net/minecraft/util/EnumFacing", "offsetX", "I").returns());
+                            asm.methodByName("func_96559_d", "getYOffset").overwrite(i -> i.getFieldThis("net/minecraft/util/EnumFacing", "offsetY", "I").returns());
+                            asm.methodByName("func_82599_e", "getZOffset").overwrite(i -> i.getFieldThis("net/minecraft/util/EnumFacing", "offsetZ", "I").returns());
                         }
                         , "net.minecraft.util.EnumFacing");
 
                 //Avoid expensive hashmap lookup
                 processors.register(asm -> {
-                    asm.staticBlock().instructions().replace(INodeMatcher.invokes("newHashMap"), new InsnNode(Opcodes.ACONST_NULL));
+                    final InstructionList instructions = asm.staticBlock().instructions();
+                    int count=0;
+                    for (AbstractInsnNode instruction : instructions) {
+                        if(INodeMatcher.invokes("newHashMap").match(instruction))instructions.replace(instruction, new InsnNode(Opcodes.ACONST_NULL));
+                        else if(INodeMatcher.fields(CoreModCore.mayDeobfuscated("field_176761_p","NAME_LOOKUP")).match(instruction) && count++==1){
+                            instructions.removeWithNext(instruction,8);
+                        }
+                    }
+                    instructions.replace(INodeMatcher.invokes("newHashMap"), new InsnNode(Opcodes.ACONST_NULL));
                     asm.methodByName("func_176717_a", "byName").overwrite(
                             list -> list.load(0)
                                     .doJump(Opcodes.IFNONNULL, InstructionList::returnNull)
@@ -331,9 +425,18 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                                     .load(1)
                                     .constant('z')
                                     .doJump(Opcodes.IF_ICMPNE, x -> x.staticVar(asm.name(), "Z", "Lnet/minecraft/util/EnumFacing$Axis;").returns())
-                                    .returnNull(), "I"
+                                    .returnNull(),
+                            new AbstractInt2ObjectMap.BasicEntry<>(1, "I")
                     );
                 }, "net.minecraft.util.EnumFacing$Axis");
+                // From Lithium mod: fast_hand_swing/LivingEntityMixin.java
+                processors.register(asm -> asm.methodByName("func_82168_bl", "updateArmSwingProgress").insertAtHead(list -> list
+                        .getFieldThis(asm.name(), CoreModCore.mayDeobfuscated("field_82175_bq", "isSwingInProgress"), "Z")
+                        .doJump(Opcodes.IFNE, l -> l
+                                .getFieldThis(asm.name(), CoreModCore.mayDeobfuscated("field_110158_av", "swingProgressInt"), "I")
+                                .doJump(Opcodes.IFNE, InstructionList::returns)
+                        )
+                ), "net.minecraft.entity.EntityLivingBase");
             }
             if (Configuration.disableStats) {
                 processors.register(asm -> asm.methodByName("func_75971_g", "registerStat").breaksThis(), "net.minecraft.stats.StatBasic", "net.minecraft.stats.StatBase");
@@ -341,10 +444,10 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
             if (Configuration.forceItemEntityMerge) {
                 processors.register(asm -> {
                     final MethodASM method = asm.methodByName("func_70100_b_", "onCollideWithPlayer");
-                    asm.methodByName("func_70289_a", "combineItems").instructions().replace(
+                    asm.methodByName("func_70289_a", "combineItems").replace(
                             INodeMatcher.invokes(
                                     CoreModCore.mayDeobfuscated("func_77976_d", "getMaxStackSize"))
-                            , new InstructionList()
+                            , ()->new InstructionList()
                                     .pop()
                                     .constant(Integer.MAX_VALUE));
                     method.instructions()
@@ -358,7 +461,6 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                     asm.constructor("(Lnet/minecraft/nbt/NBTTagCompound;)V")
                             .instructions()
                             .redirect(null, CoreModCore.mayDeobfuscated("func_74771_c", "getByte"), null, null, CoreModCore.mayDeobfuscated("func_74762_e", "getInteger"), "(Ljava/lang/String;)I", -1);
-
                     final InstructionList instructions = asm.methodByName("func_77955_b", "writeToNBT")
                             .instructions();
                     instructions.redirect(null, CoreModCore.mayDeobfuscated("func_74774_a", "setByte"), null, null, CoreModCore.mayDeobfuscated("func_74768_a", "setInteger"), "(Ljava/lang/String;I)V", -1);
@@ -379,33 +481,33 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                 }, "net.minecraft.entity.projectile.EntityThrowable");
             }
             if (Configuration.LazyChunkSaving.enabled) {
-                processors.register(asm -> asm.addField("playerStayed","Z",0), "net.minecraft.world.chunk.Chunk");
-                processors.register(asm->{
+                processors.register(asm -> asm.addField("playerStayed", "Z", 0), "net.minecraft.world.chunk.Chunk");
+                processors.register(asm -> {
                     final MethodASM method = asm.methodByName("func_70071_h_", "onUpdate");
                     method.insertAtHead(method.createList()
-                            .getFieldThis(asm.name(),CoreModCore.mayDeobfuscated("field_70170_p","world"),"Lnet/minecraft/world/World;")
-                            .getFieldThis(asm.name(),CoreModCore.mayDeobfuscated("field_70176_ah","chunkCoordX"),"I")
-                            .getFieldThis(asm.name(),CoreModCore.mayDeobfuscated("field_70164_aj","chunkCoordZ"),"I")
-                            .invokeVirtual("net/minecraft/world/World",CoreModCore.mayDeobfuscated("func_72964_e","getChunk"),"(II)Lnet/minecraft/world/chunk/Chunk;")
+                            .getFieldThis(asm.name(), CoreModCore.mayDeobfuscated("field_70170_p", "world"), "Lnet/minecraft/world/World;")
+                            .getFieldThis(asm.name(), CoreModCore.mayDeobfuscated("field_70176_ah", "chunkCoordX"), "I")
+                            .getFieldThis(asm.name(), CoreModCore.mayDeobfuscated("field_70164_aj", "chunkCoordZ"), "I")
+                            .invokeVirtual("net/minecraft/world/World", CoreModCore.mayDeobfuscated("func_72964_e", "getChunk"), "(II)Lnet/minecraft/world/chunk/Chunk;")
                             .constant(true)
-                            .setField("net/minecraft/world/chunk/Chunk","playerStayed","Z")
+                            .setField("net/minecraft/world/chunk/Chunk", "playerStayed", "Z")
                     );
-                },"net.minecraft.entity.player.EntityPlayerMP");
+                }, "net.minecraft.entity.player.EntityPlayerMP");
                 processors.register(asm -> {
                     final MethodASM method = asm.methodByName("func_75816_a", "saveChunk");
-                    method.insertAtHead(method.createList()
+                    method.insertAtHead(list -> list
                             .load(2)
-                            .field("net/minecraft/world/chunk/Chunk","playerStayed", "Z")
+                            .field("net/minecraft/world/chunk/Chunk", "playerStayed", "Z")
                             .doJump(Opcodes.IFNE, InstructionList::returns)
                     );
                 }, "net.minecraft.world.chunk.storage.AnvilChunkLoader");
-                // Fix a village generation bug
-                processors.register(asm->{
+                // TODO: This feature works terribly with multi-chunk structures(e.g. village),fix this.
+                processors.register(asm -> {
 //                    final MethodASM method = asm.methodByName("func_180701_a", "recursiveGenerate");
 //                    final InstructionList instructions = method.instructions();
 //                    final MethodInsnNode node = instructions.find(INodeMatcher.invokes("put"));
 //                    instructions.insert(node,method.createList().load(2,3));
-                },"net.minecraft.world.gen.structure.MapGenStructure");
+                }, "net.minecraft.world.gen.structure.MapGenStructure");
 
             }
             if (Configuration.Random.fastRandom) {
@@ -446,17 +548,17 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
         public byte[] transform(String obfuscatedName, String transformedName, byte[] basicClass) {
             final Collection<Processor> processor = processors.get(transformedName);
             if (processor != null) {
-                ClassASM asm = ClassASM.get(basicClass);
-                for (Processor consumer : processor) {
-                    try {
+                try {
+                    ClassASM asm = ClassASM.get(basicClass);
+                    for (Processor consumer : processor) {
                         consumer.process(asm);
-                    } catch (Exception e) {
-                        LOGGER.error("[Astatine] Unable to load coremod when transforming class '{}'!", transformedName, e);
-                        if (Configuration.debug) System.exit(-1);
-                        else return basicClass;
                     }
+                    return asm.toBytes();
+                } catch (Exception e) {
+                    LOGGER.error("[Astatine] Unable to load coremod when transforming class '{}'!", transformedName, e);
+                    if (Configuration.debug) throw new RuntimeException();
+                    else return basicClass;
                 }
-                return asm.toBytes();
             }
             return basicClass;
         }
