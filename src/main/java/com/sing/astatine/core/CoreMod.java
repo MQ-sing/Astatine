@@ -78,7 +78,6 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
         final ArrayList<String> mixins = new ArrayList<>();
         mixinIf(mixins, "mixins.multilang.json", Configuration.Lang.languageSelector);
         mixinIf(mixins, "mixins.fastlang.json", Configuration.Lang.fastLang);
-        mixinIf(mixins, "mixins.fastrandom.json", Configuration.Random.fastRandom);
         mixinIf(mixins, "mixins.faststar.json", Configuration.StarGen.enabled);
         mixinIf(mixins, "mixins.star_twinkling.json", Configuration.StarTwinkling.enabled);
         mixinIf(mixins, "mixins.weather.json", Configuration.forceWeatherParticleUseConstLight);
@@ -437,6 +436,26 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                                 .doJump(Opcodes.IFNE, InstructionList::returns)
                         )
                 ), "net.minecraft.entity.EntityLivingBase");
+                processors.register(asm->{
+                    final MethodASM method = asm.methodByName("func_178604_a", "floodFill");
+                    final String type = "it/unimi/dsi/fastutil/ints/IntArrayFIFOQueue";
+                    CoreModCore.findLocal(method.node.localVariables,3).desc= "L"+type+";";
+                    final InstructionList instructions = method.instructions();
+                    instructions.replaceOnce(INodeMatcher.invokes("newArrayDeque"),InstructionList.constructWithNoArgs(type));
+                    CoreModCore.setVirtualCall(instructions.find(INodeMatcher.invokes("isEmpty")),type);
+                    final MethodInsnNode poll=instructions.find(INodeMatcher.invokes("poll"));
+                    CoreModCore.setVirtualCall(poll,type);
+                    poll.desc="()I";
+                    poll.name="dequeueInt";
+                    instructions.removeWithNext(poll.getNext(),2);
+                    for (MethodInsnNode node : instructions.findAll(INodeMatcher.invokes("add"))) {
+                        CoreModCore.setVirtualCall(node,type);
+                        node.desc="(I)V";
+                        node.name="enqueue";
+                        instructions.remove(node.getPrevious());
+                        instructions.remove(node.getNext());
+                    }
+                },"net.minecraft.client.renderer.chunk.VisGraph");
             }
             if (Configuration.disableStats) {
                 processors.register(asm -> asm.methodByName("func_75971_g", "registerStat").breaksThis(), "net.minecraft.stats.StatBasic", "net.minecraft.stats.StatBase");
@@ -521,7 +540,6 @@ public class CoreMod implements IFMLLoadingPlugin, IEarlyMixinLoader {
                         "net.minecraft.client.particle.ParticleSpell");
                 processors.register(asm -> processFastRandom(asm.allConstructors()),
                         "net.minecraft.client.gui.FontRenderer",
-                        "net.minecraft.client.renderer.EntityRenderer",
                         "net.minecraft.client.audio.MusicTicker",
                         "net.minecraft.client.renderer.entity.RenderEnderman",
                         "net.minecraft.client.gui.GuiEnchantment",
